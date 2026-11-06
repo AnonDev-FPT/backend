@@ -1,0 +1,57 @@
+package com.anondev.platform.modules.company.controller;
+
+import com.anondev.platform.common.ApiResponse;
+import com.anondev.platform.modules.auth.entity.User;
+import com.anondev.platform.modules.auth.repository.UserRepository;
+import com.anondev.platform.modules.company.dto.KybVerificationRequest;
+import com.anondev.platform.modules.company.entity.Company;
+import com.anondev.platform.modules.company.service.CompanyService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1/companies")
+@RequiredArgsConstructor
+@Tag(name = "Company", description = "Company Profile & KYB Tax ID Verification APIs (UC-02, BR-17)")
+public class CompanyController {
+
+    private final CompanyService companyService;
+    private final UserRepository userRepository;
+
+    @GetMapping("/me")
+    @Operation(summary = "Get current authenticated employer company profile")
+    public ResponseEntity<ApiResponse<Company>> getMyCompany(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        Company company = companyService.getCompanyByUserId(user.getId());
+        return ResponseEntity.ok(ApiResponse.ok(company));
+    }
+
+    @PutMapping("/me/kyb")
+    @Operation(summary = "Update Tax ID and business license documentation for KYB verification")
+    public ResponseEntity<ApiResponse<Company>> updateKyb(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody KybVerificationRequest request
+    ) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        Company updated = companyService.updateKyb(user.getId(), request);
+        return ResponseEntity.ok(ApiResponse.ok("KYB data submitted for verification", updated));
+    }
+
+    @PutMapping("/{companyId}/verify-tax")
+    @Operation(summary = "Admin endpoint to verify tax ID (isTaxVerified = true)")
+    public ResponseEntity<ApiResponse<Company>> verifyTaxId(
+            @PathVariable UUID companyId,
+            @RequestParam(defaultValue = "true") boolean isVerified
+    ) {
+        Company company = companyService.verifyCompanyTaxId(companyId, isVerified);
+        return ResponseEntity.ok(ApiResponse.ok("Company tax status updated", company));
+    }
+}
