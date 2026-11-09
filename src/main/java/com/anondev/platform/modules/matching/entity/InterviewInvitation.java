@@ -1,4 +1,4 @@
-﻿package com.anondev.platform.modules.matching.entity;
+package com.anondev.platform.modules.matching.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

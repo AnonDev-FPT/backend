@@ -1,16 +1,23 @@
-﻿package com.anondev.platform.modules.billing.controller;
+package com.anondev.platform.modules.billing.controller;
 
 import com.anondev.platform.common.ApiResponse;
+import com.anondev.platform.common.BusinessException;
+import com.anondev.platform.modules.auth.entity.User;
+import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.billing.dto.MockTopupRequest;
 import com.anondev.platform.modules.billing.dto.SubscribeRequest;
 import com.anondev.platform.modules.billing.entity.CompanySubscription;
 import com.anondev.platform.modules.billing.entity.SubscriptionPlan;
 import com.anondev.platform.modules.billing.service.BillingService;
+import com.anondev.platform.modules.company.entity.Company;
+import com.anondev.platform.modules.company.repository.CompanyRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -21,7 +28,10 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Billing", description = "Wallet, Subscriptions, Pricing Plans & Quota Management (UC-10, BR-22, BR-23)")
 public class BillingController {
+
     private final BillingService billingService;
+    private final UserRepository userRepository;
+    private final CompanyRepository companyRepository;
 
     @GetMapping("/plans")
     @Operation(summary = "Get list of available subscription plans")
@@ -31,13 +41,27 @@ public class BillingController {
 
     @PostMapping("/mock-topup")
     @Operation(summary = "Simulated credit wallet top-up")
-    public ResponseEntity<ApiResponse<BigDecimal>> mockTopup(@Valid @RequestBody MockTopupRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Top-up successful", request.getAmount()));
+    public ResponseEntity<ApiResponse<BigDecimal>> mockTopup(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody MockTopupRequest request
+    ) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+        BigDecimal newBalance = billingService.mockTopup(company.getId(), request);
+        return ResponseEntity.ok(ApiResponse.ok("Top-up successful", newBalance));
     }
 
     @PostMapping("/subscribe")
     @Operation(summary = "Subscribe to Basic, Pro, or Ultra plan")
-    public ResponseEntity<ApiResponse<CompanySubscription>> subscribe(@Valid @RequestBody SubscribeRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Subscription activated", null));
+    public ResponseEntity<ApiResponse<CompanySubscription>> subscribe(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody SubscribeRequest request
+    ) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+        CompanySubscription sub = billingService.subscribe(company.getId(), request);
+        return ResponseEntity.ok(ApiResponse.ok("Subscription activated successfully", sub));
     }
 }

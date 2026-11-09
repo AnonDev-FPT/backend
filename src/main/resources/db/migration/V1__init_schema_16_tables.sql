@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 1. Bảng users (BR-16, BR-17)
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) NOT NULL UNIQUE,
     phone VARCHAR(20) NOT NULL UNIQUE,
@@ -15,7 +15,7 @@ CREATE TABLE users (
 );
 
 -- 2. Bảng companies (BR-17, BR-24, BR-09)
-CREATE TABLE companies (
+CREATE TABLE IF NOT EXISTS companies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     owner_user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     company_name VARCHAR(255) NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE companies (
 );
 
 -- 3. Bảng candidate_blind_profiles (Công khai trước khi Unlock - BR-01)
-CREATE TABLE candidate_blind_profiles (
+CREATE TABLE IF NOT EXISTS candidate_blind_profiles (
     candidate_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     candidate_code VARCHAR(20) NOT NULL UNIQUE,
     province_city VARCHAR(100) NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE candidate_blind_profiles (
 );
 
 -- 4. Bảng candidate_identity_vaults (Cô lập 100%, chỉ mở khi Mutual Unlock - BR-01, BR-02)
-CREATE TABLE candidate_identity_vaults (
+CREATE TABLE IF NOT EXISTS candidate_identity_vaults (
     candidate_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     real_full_name VARCHAR(255) NOT NULL,
     contact_email VARCHAR(255) NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE candidate_identity_vaults (
 );
 
 -- 5. Bảng subscription_plans (BR-22, BR-23)
-CREATE TABLE subscription_plans (
+CREATE TABLE IF NOT EXISTS subscription_plans (
     id SERIAL PRIMARY KEY,
     plan_code VARCHAR(30) NOT NULL UNIQUE,
     plan_name VARCHAR(100) NOT NULL,
@@ -77,7 +77,7 @@ CREATE TABLE subscription_plans (
 );
 
 -- 6. Bảng company_subscriptions (BR-26, BR-27, BR-28)
-CREATE TABLE company_subscriptions (
+CREATE TABLE IF NOT EXISTS company_subscriptions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     plan_id INT NOT NULL REFERENCES subscription_plans(id),
@@ -90,7 +90,7 @@ CREATE TABLE company_subscriptions (
 );
 
 -- 7. Bảng monthly_quota_ledgers (BR-26, BR-09, BR-19)
-CREATE TABLE monthly_quota_ledgers (
+CREATE TABLE IF NOT EXISTS monthly_quota_ledgers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     subscription_id UUID REFERENCES company_subscriptions(id) ON DELETE SET NULL,
@@ -106,7 +106,7 @@ CREATE TABLE monthly_quota_ledgers (
 );
 
 -- 8. Bảng wallet_transactions (BR-22, BR-25, BR-19)
-CREATE TABLE wallet_transactions (
+CREATE TABLE IF NOT EXISTS wallet_transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     transaction_type VARCHAR(30) NOT NULL,
@@ -118,7 +118,7 @@ CREATE TABLE wallet_transactions (
 );
 
 -- 9. Bảng job_postings (BR-05, BR-24, BR-25, BR-26)
-CREATE TABLE job_postings (
+CREATE TABLE IF NOT EXISTS job_postings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
@@ -136,7 +136,7 @@ CREATE TABLE job_postings (
 );
 
 -- 10. Bảng technical_tests (BR-11)
-CREATE TABLE technical_tests (
+CREATE TABLE IF NOT EXISTS technical_tests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     job_posting_id UUID NOT NULL UNIQUE REFERENCES job_postings(id) ON DELETE CASCADE,
     creation_method VARCHAR(20) NOT NULL CHECK (creation_method IN ('MANUAL', 'AI_FROM_JD')),
@@ -149,7 +149,7 @@ CREATE TABLE technical_tests (
 );
 
 -- 11. Bảng test_attempts (BR-05, BR-13, BR-14, BR-15)
-CREATE TABLE test_attempts (
+CREATE TABLE IF NOT EXISTS test_attempts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     job_posting_id UUID NOT NULL REFERENCES job_postings(id) ON DELETE CASCADE,
     technical_test_id UUID NOT NULL REFERENCES technical_tests(id) ON DELETE CASCADE,
@@ -171,7 +171,7 @@ CREATE TABLE test_attempts (
 );
 
 -- 12. Bảng proctoring_logs (BR-12, BR-13)
-CREATE TABLE proctoring_logs (
+CREATE TABLE IF NOT EXISTS proctoring_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     attempt_id UUID NOT NULL UNIQUE REFERENCES test_attempts(id) ON DELETE CASCADE,
     fullscreen_exit_count INT DEFAULT 0,
@@ -185,7 +185,7 @@ CREATE TABLE proctoring_logs (
 );
 
 -- 13. Bảng interview_invitations (BR-02, BR-06, BR-07, BR-09)
-CREATE TABLE interview_invitations (
+CREATE TABLE IF NOT EXISTS interview_invitations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     job_posting_id UUID NOT NULL REFERENCES job_postings(id) ON DELETE CASCADE,
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -212,7 +212,7 @@ CREATE TABLE interview_invitations (
 );
 
 -- 14. Bảng refund_disputes (BR-18, BR-19, BR-20)
-CREATE TABLE refund_disputes (
+CREATE TABLE IF NOT EXISTS refund_disputes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     invitation_id UUID NOT NULL UNIQUE REFERENCES interview_invitations(id) ON DELETE CASCADE,
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -229,7 +229,7 @@ CREATE TABLE refund_disputes (
 );
 
 -- 15. Bảng compliance_violations (BR-04, BR-10, BR-21)
-CREATE TABLE compliance_violations (
+CREATE TABLE IF NOT EXISTS compliance_violations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     violator_user_id UUID NOT NULL REFERENCES users(id),
     reported_by_user_id UUID REFERENCES users(id),
@@ -241,7 +241,7 @@ CREATE TABLE compliance_violations (
 );
 
 -- 16. Bảng coding_tournaments (B2C)
-CREATE TABLE coding_tournaments (
+CREATE TABLE IF NOT EXISTS coding_tournaments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
     entry_fee NUMERIC(12, 2) NOT NULL DEFAULT 50000,

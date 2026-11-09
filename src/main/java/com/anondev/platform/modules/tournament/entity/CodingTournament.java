@@ -1,4 +1,4 @@
-﻿package com.anondev.platform.modules.tournament.entity;
+package com.anondev.platform.modules.tournament.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

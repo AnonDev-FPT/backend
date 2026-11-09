@@ -1,4 +1,4 @@
-﻿package com.anondev.platform.modules.matching.repository;
+package com.anondev.platform.modules.matching.repository;
 
 import com.anondev.platform.modules.matching.entity.InterviewInvitation;
 import org.springframework.data.jpa.repository.JpaRepository;

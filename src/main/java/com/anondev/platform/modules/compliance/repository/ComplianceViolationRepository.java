@@ -1,4 +1,4 @@
-﻿package com.anondev.platform.modules.compliance.repository;
+package com.anondev.platform.modules.compliance.repository;
 
 import com.anondev.platform.modules.compliance.entity.ComplianceViolation;
 import org.springframework.data.jpa.repository.JpaRepository;

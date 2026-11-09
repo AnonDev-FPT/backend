@@ -1,4 +1,4 @@
-﻿package com.anondev.platform.modules.tournament.repository;
+package com.anondev.platform.modules.tournament.repository;
 
 import com.anondev.platform.modules.tournament.entity.CodingTournament;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -1,4 +1,4 @@
-﻿package com.anondev.platform.modules.billing.repository;
+package com.anondev.platform.modules.billing.repository;
 
 import com.anondev.platform.modules.billing.entity.CompanySubscription;
 import org.springframework.data.jpa.repository.JpaRepository;

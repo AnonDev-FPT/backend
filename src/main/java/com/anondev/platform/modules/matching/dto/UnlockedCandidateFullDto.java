@@ -1,4 +1,4 @@
-﻿package com.anondev.platform.modules.matching.dto;
+package com.anondev.platform.modules.matching.dto;
 
 import com.anondev.platform.modules.candidate.dto.IdentityVaultDto;
 import lombok.*;

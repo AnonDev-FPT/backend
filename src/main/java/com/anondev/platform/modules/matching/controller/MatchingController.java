@@ -1,6 +1,11 @@
-﻿package com.anondev.platform.modules.matching.controller;
+package com.anondev.platform.modules.matching.controller;
 
 import com.anondev.platform.common.ApiResponse;
+import com.anondev.platform.common.BusinessException;
+import com.anondev.platform.modules.auth.entity.User;
+import com.anondev.platform.modules.auth.repository.UserRepository;
+import com.anondev.platform.modules.company.entity.Company;
+import com.anondev.platform.modules.company.repository.CompanyRepository;
 import com.anondev.platform.modules.matching.dto.*;
 import com.anondev.platform.modules.matching.entity.InterviewInvitation;
 import com.anondev.platform.modules.matching.service.MatchingUnlockService;
@@ -9,6 +14,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,35 +26,83 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Matching", description = "2-Way Mutual Unlock, Invitations & 14-day Tracking (BR-02, BR-06, BR-07, BR-09)")
 public class MatchingController {
+
     private final MatchingUnlockService matchingUnlockService;
+    private final UserRepository userRepository;
+    private final CompanyRepository companyRepository;
 
     @GetMapping("/jobs/{jobId}/qualified-candidates")
     @Operation(summary = "Get qualified candidates (BlindCandidateCardDto - BR-01)")
-    public ResponseEntity<ApiResponse<List<BlindCandidateCardDto>>> getQualifiedCandidates(@PathVariable UUID jobId) {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<BlindCandidateCardDto>>> getQualifiedCandidates(
+            @PathVariable("jobId") UUID jobId,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        Company company = companyRepository.findByOwnerUserId(user.getId()).orElse(null);
+        UUID companyId = company != null ? company.getId() : null;
+        List<BlindCandidateCardDto> candidates = matchingUnlockService.getQualifiedCandidatesForJob(jobId, companyId);
+        return ResponseEntity.ok(ApiResponse.ok(candidates));
     }
 
     @PostMapping("/invitations")
     @Operation(summary = "Send interview invitation with hold credit/quota (BR-06)")
-    public ResponseEntity<ApiResponse<InterviewInvitation>> sendInvitation(@Valid @RequestBody SendInvitationRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Invitation sent with hold placed", null));
+    public ResponseEntity<ApiResponse<InterviewInvitation>> sendInvitation(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody SendInvitationRequest request
+    ) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+        InterviewInvitation invitation = matchingUnlockService.sendInvitation(company.getId(), request);
+        return ResponseEntity.ok(ApiResponse.ok("Invitation sent with hold placed", invitation));
+    }
+
+    @GetMapping("/candidates/me/invitations")
+    @Operation(summary = "Candidate retrieves their incoming interview invitations")
+    public ResponseEntity<ApiResponse<List<CandidateInvitationItemDto>>> getCandidateInvitations(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        List<CandidateInvitationItemDto> invitations = matchingUnlockService.getCandidateInvitations(user.getId());
+        return ResponseEntity.ok(ApiResponse.ok(invitations));
     }
 
     @PostMapping("/invitations/{id}/respond")
     @Operation(summary = "Candidate responds ACCEPT (unlocks) or REJECT (refunds hold) (BR-06)")
-    public ResponseEntity<ApiResponse<InterviewInvitation>> respondInvitation(@PathVariable UUID id, @Valid @RequestBody RespondInvitationRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Invitation response recorded", null));
+    public ResponseEntity<ApiResponse<InterviewInvitation>> respondInvitation(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody RespondInvitationRequest request
+    ) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        InterviewInvitation invitation = matchingUnlockService.respondInvitation(user.getId(), id, request);
+        return ResponseEntity.ok(ApiResponse.ok("Invitation response recorded", invitation));
     }
 
     @GetMapping("/invitations/{id}/unlocked-profile")
     @Operation(summary = "Employer views decrypted profile after ACCEPT_UNLOCKED (BR-02)")
-    public ResponseEntity<ApiResponse<UnlockedCandidateFullDto>> getUnlockedProfile(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.ok(null));
+    public ResponseEntity<ApiResponse<UnlockedCandidateFullDto>> getUnlockedProfile(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+        UnlockedCandidateFullDto profile = matchingUnlockService.getUnlockedProfile(company.getId(), id);
+        return ResponseEntity.ok(ApiResponse.ok(profile));
     }
 
     @PutMapping("/invitations/{id}/hiring-status")
     @Operation(summary = "Update 14-day post-unlock status (BR-09)")
-    public ResponseEntity<ApiResponse<Void>> updateHiringStatus(@PathVariable UUID id, @RequestParam String status) {
-        return ResponseEntity.ok(ApiResponse.ok("Status updated", null));
+    public ResponseEntity<ApiResponse<Void>> updateHiringStatus(
+            @PathVariable("id") UUID id,
+            @RequestParam("status") String status,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+        matchingUnlockService.updateHiringStatus(company.getId(), id, status);
+        return ResponseEntity.ok(ApiResponse.ok("Status updated successfully", null));
     }
 }

@@ -1,8 +1,10 @@
-﻿package com.anondev.platform.modules.billing.entity;
+package com.anondev.platform.modules.billing.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -29,6 +31,7 @@ public class RefundDispute {
     @Column(name = "refund_reason", nullable = false, length = 40)
     private String refundReason; // INVALID_CONTACT_INFO, CANDIDATE_NO_SHOW_5_DAYS, CONFIRMED_CHEATING
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "evidence_urls_json", columnDefinition = "JSONB")
     @Builder.Default
     private String evidenceUrlsJson = "[]";

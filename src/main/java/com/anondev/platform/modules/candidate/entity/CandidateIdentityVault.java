@@ -3,7 +3,10 @@ package com.anondev.platform.modules.candidate.entity;
 import com.anondev.platform.modules.auth.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
+import org.springframework.data.domain.Persistable;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -15,15 +18,34 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CandidateIdentityVault {
+public class CandidateIdentityVault implements Persistable<UUID> {
 
     @Id
     @Column(name = "candidate_id")
     private UUID candidateId;
 
+    @Transient
+    @Builder.Default
+    private boolean isNew = true;
+
+    @Override
+    public UUID getId() {
+        return candidateId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @PostLoad
+    @PrePersist
+    void markNotNew() {
+        this.isNew = false;
+    }
+
     @OneToOne(fetch = FetchType.LAZY)
-    @MapsId
-    @JoinColumn(name = "candidate_id")
+    @JoinColumn(name = "candidate_id", insertable = false, updatable = false)
     private User user;
 
     @Column(name = "real_full_name", nullable = false)
@@ -50,6 +72,7 @@ public class CandidateIdentityVault {
     @Column(name = "sanitized_cv_url", columnDefinition = "TEXT")
     private String sanitizedCvUrl;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "portfolio_links", columnDefinition = "JSONB")
     @Builder.Default
     private String portfolioLinks = "[]";

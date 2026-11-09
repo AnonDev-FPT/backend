@@ -3,6 +3,8 @@ package com.anondev.platform.modules.assessment.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -36,10 +38,12 @@ public class TechnicalTest {
     @Builder.Default
     private Integer timeLimitMinutes = 45;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "starter_code_json", columnDefinition = "JSONB")
     @Builder.Default
     private String starterCodeJson = "{}";
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "test_cases_json", nullable = false, columnDefinition = "JSONB")
     @Builder.Default
     private String testCasesJson = "[]";

@@ -1,4 +1,4 @@
-﻿package com.anondev.platform.modules.billing.entity;
+package com.anondev.platform.modules.billing.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

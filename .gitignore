@@ -3,6 +3,11 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# Environment and secrets
+.env
+.env.local
+!.env.example
+
 ### STS ###
 .apt_generated
 .classpath
@@ -31,5 +36,6 @@ target/
 ### macOS ###
 .DS_Store
 
-### Log files ###
+### Log files & test scripts ###
 *.log
+*.ps1
