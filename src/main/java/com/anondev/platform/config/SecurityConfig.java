@@ -37,9 +37,14 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers(
                                 "/api/v1/auth/**",
+                                "/v3/api-docs",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                "/swagger-resources",
+                                "/swagger-resources/**",
+                                "/configuration/**",
+                                "/webjars/**"
                         ).permitAll()
                         // Candidate endpoints
                         .requestMatchers("/api/v1/candidates/**").hasAnyRole("CANDIDATE", "ADMIN")

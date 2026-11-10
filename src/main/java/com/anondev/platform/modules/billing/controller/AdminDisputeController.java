@@ -28,7 +28,7 @@ public class AdminDisputeController {
 
     @PutMapping("/admin/disputes/{id}/resolve")
     @Operation(summary = "Admin resolves dispute: approve (credit/quota refund) or reject (BR-19)")
-    public ResponseEntity<ApiResponse<Void>> resolveDispute(@PathVariable UUID id, @RequestParam boolean approve) {
+    public ResponseEntity<ApiResponse<Void>> resolveDispute(@PathVariable("id") UUID id, @RequestParam("approve") boolean approve) {
         return ResponseEntity.ok(ApiResponse.ok("Dispute resolved", null));
     }
 }
