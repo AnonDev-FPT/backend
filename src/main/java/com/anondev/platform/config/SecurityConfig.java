@@ -4,6 +4,7 @@ import com.anondev.platform.modules.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -46,12 +47,15 @@ public class SecurityConfig {
                                 "/configuration/**",
                                 "/webjars/**"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/jobs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/billing/plans").permitAll()
+                        // Admin endpoints (including KYB tax verification)
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/companies/*/verify-tax").hasRole("ADMIN")
                         // Candidate endpoints
                         .requestMatchers("/api/v1/candidates/**").hasAnyRole("CANDIDATE", "ADMIN")
                         // Employer endpoints
                         .requestMatchers("/api/v1/companies/**", "/api/v1/billing/**").hasAnyRole("EMPLOYER", "ADMIN")
-                        // Admin endpoints
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // Any other request authenticated
                         .anyRequest().authenticated()
                 )

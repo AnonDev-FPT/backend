@@ -55,6 +55,32 @@ public class BillingService {
         SubscriptionPlan plan = subscriptionPlanRepository.findByPlanCode(request.getPlanCode())
                 .orElseThrow(() -> new BusinessException("Subscription plan not found: " + request.getPlanCode()));
 
+        BigDecimal price = "ANNUAL".equalsIgnoreCase(request.getBillingCycle())
+                ? (plan.getAnnualPrice() != null ? plan.getAnnualPrice() : plan.getMonthlyPrice().multiply(BigDecimal.valueOf(12)))
+                : plan.getMonthlyPrice();
+
+        // Deduct subscription fee from wallet balance if plan is not free
+        if (price != null && price.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal currentCredit = company.getCreditBalance() != null ? company.getCreditBalance() : BigDecimal.ZERO;
+            BigDecimal currentHeld = company.getHeldCreditBalance() != null ? company.getHeldCreditBalance() : BigDecimal.ZERO;
+            BigDecimal availableCredit = currentCredit.subtract(currentHeld);
+
+            if (availableCredit.compareTo(price) < 0) {
+                throw new BusinessException("Insufficient available wallet balance to subscribe to plan '" + plan.getPlanName() + "' (" + price + " VND required). Current available: " + availableCredit + " VND");
+            }
+
+            company.setCreditBalance(currentCredit.subtract(price));
+            companyRepository.save(company);
+
+            walletTransactionRepository.save(WalletTransaction.builder()
+                    .companyId(companyId)
+                    .transactionType("SUBSCRIPTION_PURCHASE")
+                    .amount(price)
+                    .paymentGateway("INTERNAL_WALLET")
+                    .description("Subscription fee for plan: " + plan.getPlanName() + " (" + request.getBillingCycle().toUpperCase() + ")")
+                    .build());
+        }
+
         Instant now = Instant.now();
         Instant end = "ANNUAL".equalsIgnoreCase(request.getBillingCycle())
                 ? now.plus(365, ChronoUnit.DAYS)

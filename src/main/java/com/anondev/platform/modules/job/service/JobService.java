@@ -4,6 +4,12 @@ import com.anondev.platform.common.BusinessException;
 import com.anondev.platform.integration.ai.AiSanitizerService;
 import com.anondev.platform.modules.assessment.entity.TechnicalTest;
 import com.anondev.platform.modules.assessment.repository.TechnicalTestRepository;
+import com.anondev.platform.modules.billing.entity.CompanySubscription;
+import com.anondev.platform.modules.billing.entity.SubscriptionPlan;
+import com.anondev.platform.modules.billing.entity.WalletTransaction;
+import com.anondev.platform.modules.billing.repository.CompanySubscriptionRepository;
+import com.anondev.platform.modules.billing.repository.SubscriptionPlanRepository;
+import com.anondev.platform.modules.billing.repository.WalletTransactionRepository;
 import com.anondev.platform.modules.company.entity.Company;
 import com.anondev.platform.modules.company.repository.CompanyRepository;
 import com.anondev.platform.modules.job.dto.CreateJobRequest;
@@ -14,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,6 +32,9 @@ public class JobService {
     private final CompanyRepository companyRepository;
     private final TechnicalTestRepository technicalTestRepository;
     private final AiSanitizerService aiSanitizerService;
+    private final CompanySubscriptionRepository subscriptionRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
+    private final WalletTransactionRepository walletTransactionRepository;
 
     @Transactional
     public JobPosting createJob(UUID userId, CreateJobRequest request) {
@@ -42,19 +52,51 @@ public class JobService {
         }
 
         // Validate funding source & slots (BR-24, BR-25, BR-26)
-        if ("FREE_TRIAL".equalsIgnoreCase(request.getFundingSource())) {
+        String funding = request.getFundingSource() != null ? request.getFundingSource().toUpperCase().trim() : "";
+        if ("FREE_TRIAL".equals(funding)) {
             if (company.getHasUsedFreeJob() != null && company.getHasUsedFreeJob()) {
                 throw new BusinessException("Free trial job posting already used for this Tax ID (BR-24).");
             }
             company.setHasUsedFreeJob(true);
             companyRepository.save(company);
-        } else if ("SINGLE_PURCHASE".equalsIgnoreCase(request.getFundingSource())) {
+        } else if ("SINGLE_PURCHASE".equals(funding)) {
             BigDecimal jobFee = BigDecimal.valueOf(100000);
-            if (company.getCreditBalance().compareTo(jobFee) < 0) {
-                throw new BusinessException("Insufficient wallet balance for single job purchase (100.000 VND required - BR-25).");
+            BigDecimal currentCredit = company.getCreditBalance() != null ? company.getCreditBalance() : BigDecimal.ZERO;
+            BigDecimal currentHeld = company.getHeldCreditBalance() != null ? company.getHeldCreditBalance() : BigDecimal.ZERO;
+            BigDecimal availableCredit = currentCredit.subtract(currentHeld);
+
+            if (availableCredit.compareTo(jobFee) < 0) {
+                throw new BusinessException("Insufficient available wallet balance for single job purchase (100.000 VND required - BR-25). Available: " + availableCredit + " VND");
             }
-            company.setCreditBalance(company.getCreditBalance().subtract(jobFee));
+            company.setCreditBalance(currentCredit.subtract(jobFee));
             companyRepository.save(company);
+
+            walletTransactionRepository.save(WalletTransaction.builder()
+                    .companyId(company.getId())
+                    .transactionType("SINGLE_JOB_PURCHASE")
+                    .amount(jobFee)
+                    .paymentGateway("INTERNAL_WALLET")
+                    .description("Single job purchase fee for posting: " + request.getTitle())
+                    .build());
+        } else if ("SUBSCRIPTION_SLOT".equals(funding)) {
+            CompanySubscription subscription = subscriptionRepository.findByCompanyIdAndStatus(company.getId(), "ACTIVE")
+                    .orElseThrow(() -> new BusinessException("No active subscription plan found to post jobs with SUBSCRIPTION_SLOT (BR-26)."));
+
+            if (subscription.getEndDate() != null && subscription.getEndDate().isBefore(Instant.now())) {
+                subscription.setStatus("EXPIRED");
+                subscriptionRepository.save(subscription);
+                throw new BusinessException("Subscription plan has expired (BR-26). Please renew your subscription to post jobs.");
+            }
+
+            SubscriptionPlan plan = subscriptionPlanRepository.findById(subscription.getPlanId())
+                    .orElseThrow(() -> new BusinessException("Subscription plan details not found."));
+
+            long currentActiveJobs = jobPostingRepository.countByCompanyIdAndStatus(company.getId(), "ACTIVE");
+            if (currentActiveJobs >= plan.getMaxConcurrentJobs()) {
+                throw new BusinessException("Maximum concurrent active jobs limit (" + plan.getMaxConcurrentJobs() + ") reached for plan '" + plan.getPlanName() + "' (BR-26). Please upgrade plan or close existing jobs.");
+            }
+        } else {
+            throw new BusinessException("Invalid funding source: " + request.getFundingSource() + ". Allowed: FREE_TRIAL, SINGLE_PURCHASE, SUBSCRIPTION_SLOT");
         }
 
         // BR-03: Sanitize job description

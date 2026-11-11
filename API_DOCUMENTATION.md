@@ -571,6 +571,31 @@ interface RespondInvitationRequest {
 
 ---
 
+### 7.4. Nộp khiếu nại hoàn phí mở khóa (Refund Dispute)
+- **Phương thức:** `POST`
+- **Đường dẫn:** `/disputes/refund`
+- **Quyền hạn:** `ROLE_EMPLOYER`
+- **Quy tắc:** Nộp trong vòng **7 ngày** kể từ khi mở khóa nếu phát hiện SĐT/Email sai, ứng viên không phản hồi sau 5 ngày, hoặc gian lận (**BR-18, BR-20**).
+
+#### Request Body:
+```typescript
+interface RefundDisputeRequest {
+  invitationId: string;       // UUID lời mời đã mở khóa
+  refundReason: 'INVALID_CONTACT_INFO' | 'CANDIDATE_NO_SHOW_5_DAYS' | 'CONFIRMED_CHEATING';
+  evidenceUrls?: string[];    // Danh sách URL ảnh chụp bằng chứng
+}
+```
+
+---
+
+### 7.5. Admin phân quyết khiếu nại hoàn phí
+- **Phương thức:** `PUT`
+- **Đường dẫn:** `/admin/disputes/{id}/resolve?approve=true`
+- **Quyền hạn:** `ROLE_ADMIN`
+- **Quy tắc:** Nếu `approve = true`, hệ thống tự động hoàn trả 100.000 VNĐ vào ví hoặc cộng lại 1 Quota vào hạn mức tháng của công ty (**BR-19**).
+
+---
+
 ## 8. Hướng dẫn Tích hợp Phía Frontend (Axios Snippets)
 
 ### Cấu hình `src/api/axiosClient.ts`

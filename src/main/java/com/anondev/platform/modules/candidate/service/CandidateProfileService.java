@@ -9,10 +9,13 @@ import com.anondev.platform.modules.candidate.entity.CandidateBlindProfile;
 import com.anondev.platform.modules.candidate.entity.CandidateIdentityVault;
 import com.anondev.platform.modules.candidate.repository.BlindProfileRepository;
 import com.anondev.platform.modules.candidate.repository.IdentityVaultRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,6 +26,25 @@ public class CandidateProfileService {
     private final BlindProfileRepository blindProfileRepository;
     private final IdentityVaultRepository identityVaultRepository;
     private final AiSanitizerService aiSanitizerService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private List<String> parseJsonList(String json) {
+        if (json == null || json.isBlank() || "[]".equals(json.trim())) return List.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private Map<String, Object> parseJsonMap(String json) {
+        if (json == null || json.isBlank() || "{}".equals(json.trim())) return Map.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
 
     @Transactional(readOnly = true)
     public Map<String, Object> getCandidateVaultData(UUID candidateId) {
@@ -41,6 +63,7 @@ public class CandidateProfileService {
                 .avatarUrl(vault.getAvatarUrl())
                 .originalCvUrl(vault.getOriginalCvUrl())
                 .sanitizedCvUrl(vault.getSanitizedCvUrl())
+                .portfolioLinks(parseJsonList(vault.getPortfolioLinks()))
                 .build();
 
         BlindProfileResponseDto blindDto = BlindProfileResponseDto.builder()
@@ -50,6 +73,8 @@ public class CandidateProfileService {
                 .experienceLevel(blind.getExperienceLevel())
                 .expectedSalaryMin(blind.getExpectedSalaryMin())
                 .expectedSalaryMax(blind.getExpectedSalaryMax())
+                .primaryTechStack(parseJsonList(blind.getPrimaryTechStack()))
+                .skillRadarScores(parseJsonMap(blind.getSkillRadarScores()))
                 .sanitizedBio(blind.getSanitizedBio())
                 .overallRankingScore(blind.getOverallRankingScore())
                 .build();

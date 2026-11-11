@@ -225,7 +225,16 @@ public class MatchingUnlockService {
         }
     }
 
-    private void releaseHold(InterviewInvitation invitation) {
+    @Transactional
+    public void expireInvitation(InterviewInvitation invitation) {
+        invitation.setInvitationStatus("EXPIRED");
+        releaseHold(invitation);
+        invitationRepository.save(invitation);
+        log.info("Invitation {} for candidate {} expired. Hold released for company {}.",
+                invitation.getId(), invitation.getCandidateId(), invitation.getCompanyId());
+    }
+
+    public void releaseHold(InterviewInvitation invitation) {
         if ("MONTHLY_QUOTA".equalsIgnoreCase(invitation.getBillingMethod())) {
             LocalDate now = LocalDate.now();
             quotaLedgerRepository.findByCompanyIdAndCycleYearAndCycleMonth(
