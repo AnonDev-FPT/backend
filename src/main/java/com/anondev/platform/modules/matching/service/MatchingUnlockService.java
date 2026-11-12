@@ -107,7 +107,7 @@ public class MatchingUnlockService {
 
     @Transactional
     public InterviewInvitation sendInvitation(UUID companyId, SendInvitationRequest request) {
-        Company company = companyRepository.findById(companyId)
+        Company company = companyRepository.findByIdForUpdate(companyId)
                 .orElseThrow(() -> new BusinessException("Company not found"));
 
         if (company.getIsTaxVerified() == null || !company.getIsTaxVerified()) {
@@ -133,7 +133,7 @@ public class MatchingUnlockService {
 
         if ("MONTHLY_QUOTA".equalsIgnoreCase(billingMethod)) {
             LocalDate now = LocalDate.now();
-            MonthlyQuotaLedger ledger = quotaLedgerRepository.findByCompanyIdAndCycleYearAndCycleMonth(
+            MonthlyQuotaLedger ledger = quotaLedgerRepository.findByCompanyIdAndCycleYearAndCycleMonthForUpdate(
                     companyId, now.getYear(), now.getMonthValue()).orElse(null);
 
             if (ledger == null || (ledger.getAllocatedQuota() + ledger.getRewardedQuota() + ledger.getRefundedQuota() - ledger.getUsedQuota() - ledger.getHeldQuota()) <= 0) {
@@ -237,14 +237,14 @@ public class MatchingUnlockService {
     public void releaseHold(InterviewInvitation invitation) {
         if ("MONTHLY_QUOTA".equalsIgnoreCase(invitation.getBillingMethod())) {
             LocalDate now = LocalDate.now();
-            quotaLedgerRepository.findByCompanyIdAndCycleYearAndCycleMonth(
+            quotaLedgerRepository.findByCompanyIdAndCycleYearAndCycleMonthForUpdate(
                     invitation.getCompanyId(), now.getYear(), now.getMonthValue())
                     .ifPresent(ledger -> {
                         ledger.setHeldQuota(Math.max(0, ledger.getHeldQuota() - 1));
                         quotaLedgerRepository.save(ledger);
                     });
         } else {
-            companyRepository.findById(invitation.getCompanyId()).ifPresent(company -> {
+            companyRepository.findByIdForUpdate(invitation.getCompanyId()).ifPresent(company -> {
                 BigDecimal unlockFee = invitation.getUnlockFeeCharged() != null ? invitation.getUnlockFeeCharged() : BigDecimal.valueOf(100000);
                 BigDecimal held = company.getHeldCreditBalance() != null ? company.getHeldCreditBalance() : BigDecimal.ZERO;
                 company.setHeldCreditBalance(held.subtract(unlockFee).max(BigDecimal.ZERO));
@@ -256,7 +256,7 @@ public class MatchingUnlockService {
     private void finalizeCapture(InterviewInvitation invitation) {
         if ("MONTHLY_QUOTA".equalsIgnoreCase(invitation.getBillingMethod())) {
             LocalDate now = LocalDate.now();
-            quotaLedgerRepository.findByCompanyIdAndCycleYearAndCycleMonth(
+            quotaLedgerRepository.findByCompanyIdAndCycleYearAndCycleMonthForUpdate(
                     invitation.getCompanyId(), now.getYear(), now.getMonthValue())
                     .ifPresent(ledger -> {
                         ledger.setHeldQuota(Math.max(0, ledger.getHeldQuota() - 1));
@@ -264,7 +264,7 @@ public class MatchingUnlockService {
                         quotaLedgerRepository.save(ledger);
                     });
         } else {
-            companyRepository.findById(invitation.getCompanyId()).ifPresent(company -> {
+            companyRepository.findByIdForUpdate(invitation.getCompanyId()).ifPresent(company -> {
                 BigDecimal unlockFee = invitation.getUnlockFeeCharged() != null ? invitation.getUnlockFeeCharged() : BigDecimal.valueOf(100000);
                 BigDecimal held = company.getHeldCreditBalance() != null ? company.getHeldCreditBalance() : BigDecimal.ZERO;
                 BigDecimal credit = company.getCreditBalance() != null ? company.getCreditBalance() : BigDecimal.ZERO;

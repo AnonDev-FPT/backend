@@ -55,10 +55,14 @@ public class AdminDisputeController {
             @PathVariable("id") UUID id,
             @RequestParam("approve") boolean approve
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new BusinessException("User not found"));
+        UUID adminId = null;
+        if (userDetails != null && userDetails.getUsername() != null) {
+            adminId = userRepository.findByEmail(userDetails.getUsername())
+                    .map(User::getId)
+                    .orElse(null);
+        }
 
-        disputeRefundService.resolveDispute(user.getId(), id, approve);
+        disputeRefundService.resolveDispute(adminId, id, approve);
         return ResponseEntity.ok(ApiResponse.ok("Dispute resolution processed: approved=" + approve, null));
     }
 }

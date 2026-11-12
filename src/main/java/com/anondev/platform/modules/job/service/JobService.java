@@ -38,7 +38,14 @@ public class JobService {
 
     @Transactional
     public JobPosting createJob(UUID userId, CreateJobRequest request) {
-        Company company = companyRepository.findByOwnerUserId(userId)
+        // Validate salary range consistency
+        if (request.getSalaryMin() != null && request.getSalaryMax() != null
+                && request.getSalaryMin().compareTo(request.getSalaryMax()) > 0) {
+            throw new BusinessException("Minimum salary cannot exceed maximum salary.");
+        }
+
+        // Lock company record for transaction integrity (BR-24, BR-25)
+        Company company = companyRepository.findByOwnerUserIdForUpdate(userId)
                 .orElseThrow(() -> new BusinessException("Company profile not found for user"));
 
         // BR-17: Verified Tax ID required

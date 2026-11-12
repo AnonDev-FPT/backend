@@ -111,7 +111,7 @@ public class DisputeRefundService {
             if ("MONTHLY_QUOTA".equalsIgnoreCase(invitation.getBillingMethod())) {
                 dispute.setRefundDestination("MONTHLY_QUOTA");
                 LocalDate now = LocalDate.now();
-                MonthlyQuotaLedger ledger = quotaLedgerRepository.findByCompanyIdAndCycleYearAndCycleMonth(
+                MonthlyQuotaLedger ledger = quotaLedgerRepository.findByCompanyIdAndCycleYearAndCycleMonthForUpdate(
                         dispute.getCompanyId(), now.getYear(), now.getMonthValue()
                 ).orElseGet(() -> MonthlyQuotaLedger.builder()
                         .companyId(dispute.getCompanyId())
@@ -125,7 +125,7 @@ public class DisputeRefundService {
                 log.info("Dispute {} approved: +1 refunded quota credited to company {}.", dispute.getId(), dispute.getCompanyId());
             } else {
                 dispute.setRefundDestination("WALLET_CREDIT");
-                Company company = companyRepository.findById(dispute.getCompanyId())
+                Company company = companyRepository.findByIdForUpdate(dispute.getCompanyId())
                         .orElseThrow(() -> new BusinessException("Company not found."));
 
                 BigDecimal refundAmount = invitation.getUnlockFeeCharged() != null

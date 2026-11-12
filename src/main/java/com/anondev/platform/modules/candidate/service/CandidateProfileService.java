@@ -87,6 +87,11 @@ public class CandidateProfileService {
 
     @Transactional
     public void updateCandidateVault(UUID candidateId, UpdateProfileRequest request) {
+        if (request.getExpectedSalaryMin() != null && request.getExpectedSalaryMax() != null
+                && request.getExpectedSalaryMin().compareTo(request.getExpectedSalaryMax()) > 0) {
+            throw new BusinessException("Expected minimum salary cannot exceed maximum salary.");
+        }
+
         CandidateIdentityVault vault = identityVaultRepository.findById(candidateId)
                 .orElseThrow(() -> new BusinessException("Candidate vault not found"));
 
@@ -100,12 +105,22 @@ public class CandidateProfileService {
         if (request.getGender() != null) vault.setGender(request.getGender());
         if (request.getAvatarUrl() != null) vault.setAvatarUrl(request.getAvatarUrl());
         if (request.getOriginalCvUrl() != null) vault.setOriginalCvUrl(request.getOriginalCvUrl());
+        if (request.getPortfolioLinks() != null) {
+            try {
+                vault.setPortfolioLinks(objectMapper.writeValueAsString(request.getPortfolioLinks()));
+            } catch (Exception ignored) {}
+        }
 
         if (request.getProvinceCity() != null) blind.setProvinceCity(request.getProvinceCity());
         if (request.getWorkMode() != null) blind.setWorkMode(request.getWorkMode());
         if (request.getExperienceLevel() != null) blind.setExperienceLevel(request.getExperienceLevel());
         if (request.getExpectedSalaryMin() != null) blind.setExpectedSalaryMin(request.getExpectedSalaryMin());
         if (request.getExpectedSalaryMax() != null) blind.setExpectedSalaryMax(request.getExpectedSalaryMax());
+        if (request.getPrimaryTechStack() != null) {
+            try {
+                blind.setPrimaryTechStack(objectMapper.writeValueAsString(request.getPrimaryTechStack()));
+            } catch (Exception ignored) {}
+        }
 
         // Sanitization using Strategy Pattern (BR-03)
         if (request.getBio() != null) {

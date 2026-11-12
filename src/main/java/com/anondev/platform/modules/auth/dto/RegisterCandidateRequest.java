@@ -24,13 +24,16 @@ public class RegisterCandidateRequest {
     private String phone;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 6, message = "Password must have at least 6 characters")
+    @Size(min = 6, max = 50, message = "Password must have between 6 and 50 characters")
     private String password;
 
     @NotBlank(message = "Full name is required")
+    @Size(max = 100, message = "Full name cannot exceed 100 characters")
     private String realFullName;
 
     private String provinceCity;
+
+    @Pattern(regexp = "^(REMOTE|ONSITE|OFFLINE|HYBRID)$", message = "Work mode must be REMOTE, ONSITE, OFFLINE, or HYBRID")
     private String workMode; // REMOTE, OFFLINE, HYBRID
     private String originalCvUrl;
 }

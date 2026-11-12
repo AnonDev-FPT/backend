@@ -36,7 +36,7 @@ public class CandidateController {
     @Operation(summary = "Update vault details and blind profile with auto AI sanitization (BR-03)")
     public ResponseEntity<ApiResponse<Void>> updateMyVault(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody UpdateProfileRequest request
+            @jakarta.validation.Valid @RequestBody UpdateProfileRequest request
     ) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         candidateProfileService.updateCandidateVault(user.getId(), request);

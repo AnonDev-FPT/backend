@@ -28,7 +28,7 @@ public class BillingService {
 
     @Transactional
     public BigDecimal mockTopup(UUID companyId, MockTopupRequest request) {
-        Company company = companyRepository.findById(companyId)
+        Company company = companyRepository.findByIdForUpdate(companyId)
                 .orElseThrow(() -> new BusinessException("Company not found"));
 
         BigDecimal newBalance = (company.getCreditBalance() != null ? company.getCreditBalance() : BigDecimal.ZERO)
@@ -49,7 +49,7 @@ public class BillingService {
 
     @Transactional
     public CompanySubscription subscribe(UUID companyId, SubscribeRequest request) {
-        Company company = companyRepository.findById(companyId)
+        Company company = companyRepository.findByIdForUpdate(companyId)
                 .orElseThrow(() -> new BusinessException("Company not found"));
 
         SubscriptionPlan plan = subscriptionPlanRepository.findByPlanCode(request.getPlanCode())
