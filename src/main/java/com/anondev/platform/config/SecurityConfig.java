@@ -49,6 +49,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/jobs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/billing/plans").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tournaments", "/api/v1/tournaments/*", "/api/v1/tournaments/*/leaderboard").permitAll()
                         // Admin endpoints (including KYB tax verification)
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/companies/*/verify-tax").hasRole("ADMIN")

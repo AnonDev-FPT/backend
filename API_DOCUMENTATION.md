@@ -1,7 +1,7 @@
 # AnonDev Platform - API Integration Documentation for Frontend
 
-> **Phiên bản:** v1.0.0  
-> **Cập nhật:** 2026-11-09  
+> **Phiên bản:** v1.2.0 (Bổ sung Đấu trường Code & Pessimistic Locking)  
+> **Cập nhật:** 2026-11-12  
 > **Cơ sở dữ liệu:** Neon Serverless PostgreSQL  
 > **Môi trường Backend:** Spring Boot 3.3.4 (Java 17)  
 > **Base URL:** `http://localhost:8080/api/v1`  
@@ -596,7 +596,226 @@ interface RefundDisputeRequest {
 
 ---
 
-## 8. Hướng dẫn Tích hợp Phía Frontend (Axios Snippets)
+## 8. Danh mục API Đấu trường Code & Giải đấu Lập trình (Coding Arena & Tournament - B2C)
+
+### 8.1. Lấy danh sách giải đấu lập trình
+- **Phương thức:** `GET`
+- **Đường dẫn:** `/tournaments`
+- **Xác thực:** Public (Nếu có token Candidate, hệ thống trả về thêm trường `isRegistered: true/false`)
+- **Mô tả:** Lấy danh sách các giải đấu với trạng thái động (`UPCOMING`, `ONGOING`, `FINISHED`), số lượng thí sinh tham gia và số lượng đề bài.
+
+#### Phản hồi (Data):
+```json
+{
+  "success": true,
+  "message": "Operation successful",
+  "data": [
+    {
+      "id": "8c981d18-3c93-4bf1-8347-d8431864eba9",
+      "title": "AnonDev Weekly Arena #1 - Autumn Clash",
+      "entryFee": 50000.00,
+      "prizePoolAmount": 5000000.00,
+      "startTime": "2026-11-12T15:26:00Z",
+      "endTime": "2026-11-12T17:26:00Z",
+      "status": "ONGOING",
+      "participantCount": 24,
+      "problemCount": 3,
+      "isRegistered": true
+    }
+  ],
+  "timestamp": "2026-11-12T15:30:00Z"
+}
+```
+
+---
+
+### 8.2. Lấy chi tiết giải đấu
+- **Phương thức:** `GET`
+- **Đường dẫn:** `/tournaments/{id}`
+- **Xác thực:** Public
+
+---
+
+### 8.3. Thí sinh đăng ký tham gia Đấu trường (Join Tournament)
+- **Phương thức:** `POST`
+- **Đường dẫn:** `/tournaments/{id}/join`
+- **Quyền hạn:** `ROLE_CANDIDATE`
+- **Quy tắc:**
+  - Chỉ được đăng ký khi giải đấu đang ở trạng thái `UPCOMING` hoặc `ONGOING`.
+  - Chống đăng ký trùng lặp (trả về `400 Bad Request` nếu đã tham gia).
+
+#### Phản hồi (Data):
+```json
+{
+  "success": true,
+  "message": "Successfully registered for tournament",
+  "data": {
+    "id": "f550972b-8a8f-4ba3-8b74-3be8bf33cbfa",
+    "tournamentId": "8c981d18-3c93-4bf1-8347-d8431864eba9",
+    "candidateId": "d47a948e-d3e6-4ceb-87c4-d6d8f8e659fb",
+    "registeredAt": "2026-11-12T15:30:15Z",
+    "totalScore": 0,
+    "penaltySeconds": 0,
+    "rankPosition": null,
+    "isDisqualified": false
+  },
+  "timestamp": "2026-11-12T15:30:15Z"
+}
+```
+
+---
+
+### 8.4. Thí sinh lấy danh sách đề thi của giải đấu
+- **Phương thức:** `GET`
+- **Đường dẫn:** `/tournaments/{id}/problems`
+- **Quyền hạn:** `ROLE_CANDIDATE`
+- **Quy tắc bảo mật đề thi:**
+  - Bắt buộc ứng viên phải bấm đăng ký tham gia giải trước.
+  - Đề bài bị khóa và chỉ mở khi giải đấu đã chính thức bắt đầu (`startTime <= now`).
+
+#### Phản hồi (Data):
+```json
+{
+  "success": true,
+  "message": "Operation successful",
+  "data": [
+    {
+      "id": "1ffdd5d7-3d9b-4cfa-8660-c5f5355bcbb5",
+      "tournamentId": "8c981d18-3c93-4bf1-8347-d8431864eba9",
+      "title": "Problem A: Two Sum Ultra",
+      "difficulty": "EASY",
+      "problemStatement": "Cho mang so nguyen nums va target, tim 2 vi tri sao cho tong bang target.",
+      "points": 100,
+      "timeLimitMs": 1000,
+      "memoryLimitKb": 256000,
+      "starterCodeJson": "{\"java\": \"class Solution { public int[] twoSum(int[] nums, int target) {} }\"}",
+      "testCasesJson": "[{\"input\": \"[2,7,11,15], 9\", \"expected\": \"[0,1]\"}]"
+    }
+  ],
+  "timestamp": "2026-11-12T15:30:20Z"
+}
+```
+
+---
+
+### 8.5. Thí sinh nộp bài giải thuật (Submit Solution)
+- **Phương thức:** `POST`
+- **Đường dẫn:** `/tournaments/{id}/problems/{problemId}/submit`
+- **Quyền hạn:** `ROLE_CANDIDATE`
+- **Quy tắc chấm điểm & thời gian phạt:**
+  - Chỉ chấp nhận nộp bài trong khung giờ `ONGOING`.
+  - Tính điểm theo tỷ lệ test cases vượt qua và cộng dồn vào `totalScore` của thí sinh.
+  - Tính thời gian phạt (`penaltySeconds`) chuẩn ICPC: thời gian nộp bài tính từ thời điểm mở giải.
+
+#### Request Body:
+```typescript
+interface SubmitTournamentSolutionRequest {
+  language: string;     // Ví dụ: "JAVA", "PYTHON", "CPP", "JAVASCRIPT"
+  sourceCode: string;   // Mã nguồn giải thuật của thí sinh (tối đa 100KB)
+}
+```
+
+#### Phản hồi (Data):
+```json
+{
+  "success": true,
+  "message": "Solution evaluated: ACCEPTED",
+  "data": {
+    "id": "c1f6d338-9279-46c5-a6e5-475ec76a26df",
+    "tournamentId": "8c981d18-3c93-4bf1-8347-d8431864eba9",
+    "problemId": "1ffdd5d7-3d9b-4cfa-8660-c5f5355bcbb5",
+    "candidateId": "d47a948e-d3e6-4ceb-87c4-d6d8f8e659fb",
+    "language": "JAVA",
+    "verdict": "ACCEPTED",
+    "passedTestCases": 10,
+    "totalTestCases": 10,
+    "executionTimeMs": 120,
+    "scoreAwarded": 100,
+    "submittedAt": "2026-11-12T15:31:00Z"
+  },
+  "timestamp": "2026-11-12T15:31:00Z"
+}
+```
+
+---
+
+### 8.6. Bảng xếp hạng Live Leaderboard (Ẩn danh)
+- **Phương thức:** `GET`
+- **Đường dẫn:** `/tournaments/{id}/leaderboard`
+- **Xác thực:** Public
+- **Quy tắc:**
+  - Sắp xếp ưu tiên: Điểm số cao nhất (`totalScore DESC`), thời gian phạt ít nhất (`penaltySeconds ASC`).
+  - Danh tính thí sinh được bảo mật bằng mã ẩn danh `candidateCode` (ví dụ `CAND-76900`).
+
+#### Phản hồi (Data):
+```json
+{
+  "success": true,
+  "message": "Operation successful",
+  "data": [
+    {
+      "rank": 1,
+      "candidateCode": "CAND-76900",
+      "candidateId": "d47a948e-d3e6-4ceb-87c4-d6d8f8e659fb",
+      "totalScore": 300,
+      "penaltySeconds": 602,
+      "problemsSolved": 2
+    },
+    {
+      "rank": 2,
+      "candidateCode": "CAND-38969",
+      "candidateId": "1e75a892-0b31-4a25-a1c2-75d165f128bc",
+      "totalScore": 100,
+      "penaltySeconds": 302,
+      "problemsSolved": 1
+    }
+  ],
+  "timestamp": "2026-11-12T15:31:15Z"
+}
+```
+
+---
+
+### 8.7. [Admin] Tạo giải đấu mới
+- **Phương thức:** `POST`
+- **Đường dẫn:** `/admin/tournaments`
+- **Quyền hạn:** `ROLE_ADMIN`
+
+#### Request Body:
+```json
+{
+  "title": "AnonDev Winter Arena 2026",
+  "entryFee": 50000,
+  "prizePoolAmount": 5000000,
+  "startTime": "2026-11-20T19:00:00Z",
+  "endTime": "2026-11-20T21:00:00Z"
+}
+```
+
+---
+
+### 8.8. [Admin] Thêm bài toán vào giải đấu
+- **Phương thức:** `POST`
+- **Đường dẫn:** `/admin/tournaments/{id}/problems`
+- **Quyền hạn:** `ROLE_ADMIN`
+
+#### Request Body:
+```json
+{
+  "title": "Problem A: Two Sum Ultra",
+  "difficulty": "EASY",
+  "problemStatement": "Cho mảng số nguyên nums và số nguyên target, tìm 2 chỉ số sao cho tổng bằng target.",
+  "points": 100,
+  "timeLimitMs": 1000,
+  "memoryLimitKb": 256000,
+  "starterCodeJson": "{\"java\": \"class Solution { public int[] twoSum(int[] nums, int target) {} }\"}",
+  "testCasesJson": "[{\"input\": \"[2,7,11,15], 9\", \"expected\": \"[0,1]\"}]"
+}
+```
+
+---
+
+## 9. Hướng dẫn Tích hợp Phía Frontend (Axios Snippets)
 
 ### Cấu hình `src/api/axiosClient.ts`
 ```typescript
