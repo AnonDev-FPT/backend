@@ -50,7 +50,7 @@ public class CreateJobRequest {
 
     private String problemStatement;
 
-    @Min(value = 5, message = "Time limit must be at least 5 minutes")
+    @Min(value = 1, message = "Time limit must be at least 1 minute")
     @Max(value = 300, message = "Time limit cannot exceed 300 minutes")
     private Integer timeLimitMinutes;
 

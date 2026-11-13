@@ -27,6 +27,8 @@ import java.util.Collections;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+    private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -34,6 +36,10 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> {})
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(customAuthenticationEntryPoint)
+                        .accessDeniedHandler(customAccessDeniedHandler)
+                )
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
                         .requestMatchers(
@@ -47,7 +53,13 @@ public class SecurityConfig {
                                 "/configuration/**",
                                 "/webjars/**"
                         ).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/jobs/**").permitAll()
+                        // Candidate-only Technical Test & Attempt endpoints (must be before public jobs matchers)
+                        .requestMatchers("/api/v1/jobs/*/test", "/api/v1/jobs/*/test/**").hasAnyRole("CANDIDATE", "ADMIN")
+                        // Employer-only Job creation and management endpoints
+                        .requestMatchers(HttpMethod.POST, "/api/v1/jobs").hasAnyRole("EMPLOYER", "ADMIN")
+                        .requestMatchers("/api/v1/jobs/my-jobs").hasAnyRole("EMPLOYER", "ADMIN")
+                        // Public Job listing and details
+                        .requestMatchers(HttpMethod.GET, "/api/v1/jobs", "/api/v1/jobs/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/billing/plans").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/tournaments", "/api/v1/tournaments/*", "/api/v1/tournaments/*/leaderboard").permitAll()
                         // Admin endpoints (including KYB tax verification)

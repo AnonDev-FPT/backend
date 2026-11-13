@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -28,6 +29,7 @@ public class JobController {
     private final UserRepository userRepository;
 
     @PostMapping
+    @PreAuthorize("hasRole('EMPLOYER')")
     @Operation(summary = "Post a new Job with accompanying Technical Test (checks KYB & slot limit)")
     public ResponseEntity<ApiResponse<JobPosting>> createJob(
             @AuthenticationPrincipal UserDetails userDetails,
@@ -36,6 +38,17 @@ public class JobController {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         JobPosting job = jobService.createJob(user.getId(), request);
         return ResponseEntity.ok(ApiResponse.ok("Job posting created successfully", job));
+    }
+
+    @GetMapping("/my-jobs")
+    @PreAuthorize("hasRole('EMPLOYER')")
+    @Operation(summary = "Get list of jobs posted by current employer")
+    public ResponseEntity<ApiResponse<List<JobPosting>>> getMyJobs(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        List<JobPosting> jobs = jobService.getJobsByCompany(user.getId());
+        return ResponseEntity.ok(ApiResponse.ok(jobs));
     }
 
     @GetMapping

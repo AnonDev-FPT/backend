@@ -139,6 +139,13 @@ public class JobService {
     }
 
     @Transactional(readOnly = true)
+    public List<JobPosting> getJobsByCompany(UUID userId) {
+        Company company = companyRepository.findByOwnerUserId(userId)
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+        return jobPostingRepository.findByCompanyId(company.getId());
+    }
+
+    @Transactional(readOnly = true)
     public List<JobPosting> getActiveJobs() {
         return jobPostingRepository.findByStatus("ACTIVE");
     }
