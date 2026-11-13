@@ -24,7 +24,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
-@Tag(name = "Dispute", description = "Refund Dispute & Admin Arbitration (BR-18, BR-19, BR-20)")
+@Tag(name = "Dispute")
 public class AdminDisputeController {
 
     private final DisputeRefundService disputeRefundService;
@@ -33,7 +33,7 @@ public class AdminDisputeController {
 
     @PostMapping("/disputes/refund")
     @PreAuthorize("hasRole('EMPLOYER')")
-    @Operation(summary = "Submit refund dispute within 7 days of unlock (BR-18, BR-20)")
+    @Operation(summary = "Submit Refund Dispute")
     public ResponseEntity<ApiResponse<RefundDispute>> submitDispute(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody RefundDisputeRequest request
@@ -49,7 +49,7 @@ public class AdminDisputeController {
 
     @PutMapping("/admin/disputes/{id}/resolve")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Admin resolves dispute: approve (credit/quota refund) or reject (BR-19)")
+    @Operation(summary = "Resolve Dispute")
     public ResponseEntity<ApiResponse<Void>> resolveDispute(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable("id") UUID id,

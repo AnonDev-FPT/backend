@@ -60,5 +60,6 @@ springdoc:
     enabled: true
     tags-sorter: alpha
     operations-sorter: alpha
-    display-request-duration: true
     doc-expansion: none
+    default-models-expand-depth: -1
+    default-model-expand-depth: 1

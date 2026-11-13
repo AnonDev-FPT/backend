@@ -20,7 +20,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/candidates")
 @RequiredArgsConstructor
-@Tag(name = "Candidate", description = "Candidate Identity Vault and Blind Profile Management (UC-03)")
+@Tag(name = "Candidate")
 public class CandidateController {
 
     private final CandidateProfileService candidateProfileService;
@@ -28,7 +28,7 @@ public class CandidateController {
 
     @GetMapping("/me/vault")
     @PreAuthorize("hasRole('CANDIDATE')")
-    @Operation(summary = "Get current candidate 2-column vault (PII isolated vs Public)")
+    @Operation(summary = "Get Candidate Vault")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getMyVault(@AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new BusinessException("User not found"));
@@ -38,7 +38,7 @@ public class CandidateController {
 
     @PutMapping("/me/vault")
     @PreAuthorize("hasRole('CANDIDATE')")
-    @Operation(summary = "Update vault details and blind profile with auto AI sanitization (BR-03)")
+    @Operation(summary = "Update Candidate Vault")
     public ResponseEntity<ApiResponse<Void>> updateMyVault(
             @AuthenticationPrincipal UserDetails userDetails,
             @jakarta.validation.Valid @RequestBody UpdateProfileRequest request

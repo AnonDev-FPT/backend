@@ -21,13 +21,11 @@ public class OpenApiConfig {
         final String securitySchemeName = "bearerAuth";
         return new OpenAPI()
                 .info(new Info()
-                        .title("AnonDev API - Blind Hiring & Skill-First IT Recruitment Platform")
-                        .description("RESTful API documentation for AnonDev Platform (Decree 13/2023/ND-CP, Blind Profiles, 2-Way Mutual Handshake & Technical Assessments)")
+                        .title("AnonDev API")
                         .version("v1.0.0")
-                        .contact(new Contact().name("AnonDev Engineering Team").email("dev@anondev.io"))
-                        .license(new License().name("Proprietary").url("https://anondev.io")))
+                        .description("AnonDev Platform API Documentation"))
                 .servers(List.of(
-                        new Server().url("http://localhost:8080").description("Local Development Server")
+                        new Server().url("http://localhost:8080").description("Localhost")
                 ))
                 .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
                 .components(new Components()
@@ -37,6 +35,6 @@ public class OpenApiConfig {
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")
-                                        .description("Enter your JWT token obtained from /api/v1/auth/login or /api/v1/auth/register-*")));
+                                        .description("JWT Bearer Token")));
     }
 }

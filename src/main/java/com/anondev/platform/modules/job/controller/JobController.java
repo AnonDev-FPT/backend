@@ -22,7 +22,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/jobs")
 @RequiredArgsConstructor
-@Tag(name = "Job", description = "Job Posting and Slot Management APIs (UC-04, BR-17, BR-24, BR-26)")
+@Tag(name = "Job")
 public class JobController {
 
     private final JobService jobService;
@@ -30,7 +30,7 @@ public class JobController {
 
     @PostMapping
     @PreAuthorize("hasRole('EMPLOYER')")
-    @Operation(summary = "Post a new Job with accompanying Technical Test (checks KYB & slot limit)")
+    @Operation(summary = "Create Job")
     public ResponseEntity<ApiResponse<JobPosting>> createJob(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody CreateJobRequest request
@@ -52,14 +52,14 @@ public class JobController {
     }
 
     @GetMapping
-    @Operation(summary = "List all active job postings")
+    @Operation(summary = "List Active Jobs")
     public ResponseEntity<ApiResponse<List<JobPosting>>> getActiveJobs() {
         List<JobPosting> jobs = jobService.getActiveJobs();
         return ResponseEntity.ok(ApiResponse.ok(jobs));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get job details by ID")
+    @Operation(summary = "Get Job Details")
     public ResponseEntity<ApiResponse<JobPosting>> getJobById(@PathVariable UUID id) {
         JobPosting job = jobService.getJobById(id);
         return ResponseEntity.ok(ApiResponse.ok(job));

@@ -25,7 +25,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/matching")
 @RequiredArgsConstructor
-@Tag(name = "Matching", description = "2-Way Mutual Unlock, Invitations & 14-day Tracking (BR-02, BR-06, BR-07, BR-09)")
+@Tag(name = "Matching")
 public class MatchingController {
 
     private final MatchingUnlockService matchingUnlockService;
@@ -34,7 +34,7 @@ public class MatchingController {
 
     @GetMapping("/jobs/{jobId}/qualified-candidates")
     @PreAuthorize("hasRole('EMPLOYER')")
-    @Operation(summary = "Get qualified candidates (BlindCandidateCardDto - BR-01)")
+    @Operation(summary = "Get Qualified Candidates")
     public ResponseEntity<ApiResponse<List<BlindCandidateCardDto>>> getQualifiedCandidates(
             @PathVariable("jobId") UUID jobId,
             @AuthenticationPrincipal UserDetails userDetails
@@ -49,7 +49,7 @@ public class MatchingController {
 
     @PostMapping("/invitations")
     @PreAuthorize("hasRole('EMPLOYER')")
-    @Operation(summary = "Send interview invitation with hold credit/quota (BR-06)")
+    @Operation(summary = "Send Interview Invitation")
     public ResponseEntity<ApiResponse<InterviewInvitation>> sendInvitation(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody SendInvitationRequest request
@@ -64,7 +64,7 @@ public class MatchingController {
 
     @GetMapping("/candidates/me/invitations")
     @PreAuthorize("hasRole('CANDIDATE')")
-    @Operation(summary = "Candidate retrieves their incoming interview invitations")
+    @Operation(summary = "Get Candidate Invitations")
     public ResponseEntity<ApiResponse<List<CandidateInvitationItemDto>>> getCandidateInvitations(
             @AuthenticationPrincipal UserDetails userDetails
     ) {
@@ -76,7 +76,7 @@ public class MatchingController {
 
     @PostMapping("/invitations/{id}/respond")
     @PreAuthorize("hasRole('CANDIDATE')")
-    @Operation(summary = "Candidate responds ACCEPT (unlocks) or REJECT (refunds hold) (BR-06)")
+    @Operation(summary = "Respond to Invitation")
     public ResponseEntity<ApiResponse<InterviewInvitation>> respondInvitation(
             @PathVariable("id") UUID id,
             @AuthenticationPrincipal UserDetails userDetails,
@@ -90,7 +90,7 @@ public class MatchingController {
 
     @GetMapping("/invitations/{id}/unlocked-profile")
     @PreAuthorize("hasRole('EMPLOYER')")
-    @Operation(summary = "Employer views decrypted profile after ACCEPT_UNLOCKED (BR-02)")
+    @Operation(summary = "Get Unlocked Profile")
     public ResponseEntity<ApiResponse<UnlockedCandidateFullDto>> getUnlockedProfile(
             @PathVariable("id") UUID id,
             @AuthenticationPrincipal UserDetails userDetails
@@ -105,7 +105,7 @@ public class MatchingController {
 
     @PutMapping("/invitations/{id}/hiring-status")
     @PreAuthorize("hasRole('EMPLOYER')")
-    @Operation(summary = "Update 14-day post-unlock status (BR-09)")
+    @Operation(summary = "Update Hiring Status")
     public ResponseEntity<ApiResponse<Void>> updateHiringStatus(
             @PathVariable("id") UUID id,
             @RequestParam("status") String status,

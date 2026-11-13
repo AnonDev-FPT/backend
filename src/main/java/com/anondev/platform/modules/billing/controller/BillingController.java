@@ -27,7 +27,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/billing")
 @RequiredArgsConstructor
-@Tag(name = "Billing", description = "Wallet, Subscriptions, Pricing Plans & Quota Management (UC-10, BR-22, BR-23)")
+@Tag(name = "Billing")
 public class BillingController {
 
     private final BillingService billingService;
@@ -35,14 +35,14 @@ public class BillingController {
     private final CompanyRepository companyRepository;
 
     @GetMapping("/plans")
-    @Operation(summary = "Get list of available subscription plans")
+    @Operation(summary = "List Subscription Plans")
     public ResponseEntity<ApiResponse<List<SubscriptionPlan>>> getPlans() {
         return ResponseEntity.ok(ApiResponse.ok(billingService.getAllPlans()));
     }
 
     @PostMapping("/mock-topup")
     @PreAuthorize("hasRole('EMPLOYER')")
-    @Operation(summary = "Simulated credit wallet top-up")
+    @Operation(summary = "Mock Top-up Wallet")
     public ResponseEntity<ApiResponse<BigDecimal>> mockTopup(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody MockTopupRequest request
@@ -57,7 +57,7 @@ public class BillingController {
 
     @PostMapping("/subscribe")
     @PreAuthorize("hasRole('EMPLOYER')")
-    @Operation(summary = "Subscribe to Basic, Pro, or Ultra plan")
+    @Operation(summary = "Subscribe Plan")
     public ResponseEntity<ApiResponse<CompanySubscription>> subscribe(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody SubscribeRequest request

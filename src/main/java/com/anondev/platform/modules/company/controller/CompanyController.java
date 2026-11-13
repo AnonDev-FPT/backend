@@ -22,7 +22,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/companies")
 @RequiredArgsConstructor
-@Tag(name = "Company", description = "Company Profile & KYB Tax ID Verification APIs (UC-02, BR-17)")
+@Tag(name = "Company")
 public class CompanyController {
 
     private final CompanyService companyService;
@@ -30,7 +30,7 @@ public class CompanyController {
 
     @GetMapping("/me")
     @PreAuthorize("hasRole('EMPLOYER')")
-    @Operation(summary = "Get current authenticated employer company profile")
+    @Operation(summary = "Get Company Profile")
     public ResponseEntity<ApiResponse<Company>> getMyCompany(@AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new BusinessException("User not found"));
@@ -40,7 +40,7 @@ public class CompanyController {
 
     @PutMapping("/me/kyb")
     @PreAuthorize("hasRole('EMPLOYER')")
-    @Operation(summary = "Update Tax ID and business license documentation for KYB verification")
+    @Operation(summary = "Submit KYB Verification")
     public ResponseEntity<ApiResponse<Company>> updateKyb(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody KybVerificationRequest request
@@ -53,7 +53,7 @@ public class CompanyController {
 
     @PutMapping("/{companyId}/verify-tax")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Admin endpoint to verify tax ID (isTaxVerified = true)")
+    @Operation(summary = "Verify Company Tax ID")
     public ResponseEntity<ApiResponse<Company>> verifyTaxId(
             @PathVariable UUID companyId,
             @RequestParam(defaultValue = "true") boolean isVerified

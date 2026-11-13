@@ -27,7 +27,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/jobs")
 @RequiredArgsConstructor
-@Tag(name = "Assessment", description = "Technical Test, Proctoring & Decree 13 Consent APIs (UC-05, UC-06)")
+@Tag(name = "Assessment")
 public class AssessmentController {
 
     private final AssessmentService assessmentService;
@@ -36,7 +36,7 @@ public class AssessmentController {
 
     @GetMapping("/{jobId}/test")
     @PreAuthorize("hasRole('CANDIDATE')")
-    @Operation(summary = "Get technical test for candidate (Checks BR-15 attempt limits)")
+    @Operation(summary = "Get Job Test")
     public ResponseEntity<ApiResponse<TechnicalTest>> getJobTest(
             @PathVariable UUID jobId,
             @AuthenticationPrincipal UserDetails userDetails
@@ -51,7 +51,7 @@ public class AssessmentController {
 
     @PostMapping("/{jobId}/test/submit")
     @PreAuthorize("hasRole('CANDIDATE')")
-    @Operation(summary = "Submit technical test attempt with Decree 13 consent and proctoring telemetry")
+    @Operation(summary = "Submit Test Attempt")
     public ResponseEntity<ApiResponse<TestAttemptSummaryDto>> submitJobTest(
             @PathVariable UUID jobId,
             @AuthenticationPrincipal UserDetails userDetails,
@@ -67,7 +67,7 @@ public class AssessmentController {
 
     @PostMapping("/test")
     @PreAuthorize("hasRole('EMPLOYER')")
-    @Operation(summary = "Create technical test linked to a job posting")
+    @Operation(summary = "Create Technical Test")
     public ResponseEntity<ApiResponse<TechnicalTest>> createTest(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody CreateTestRequest request
