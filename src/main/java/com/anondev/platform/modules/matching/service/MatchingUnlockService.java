@@ -128,6 +128,22 @@ public class MatchingUnlockService {
         }
 
         // Prevent duplicate pending or accepted invitations (BR-06)
+        JobPosting job = jobPostingRepository.findById(request.getJobPostingId())
+                .orElseThrow(() -> new BusinessException("Job posting not found"));
+        if (!job.getCompanyId().equals(companyId)) {
+            throw new BusinessException("Unauthorized: Job posting does not belong to your company.");
+        }
+
+        TestAttempt attempt = testAttemptRepository.findById(request.getTestAttemptId())
+                .orElseThrow(() -> new BusinessException("Test attempt not found"));
+        if (!attempt.getJobPostingId().equals(request.getJobPostingId())
+                || !attempt.getCandidateId().equals(request.getCandidateId())) {
+            throw new BusinessException("Invalid test attempt: does not match the candidate and job posting.");
+        }
+        if (attempt.getIsPassedThreshold() == null || !attempt.getIsPassedThreshold()) {
+            throw new BusinessException("Cannot invite candidate: test attempt did not pass the qualification threshold.");
+        }
+
         Optional<InterviewInvitation> existing = invitationRepository.findByJobPostingIdAndCandidateId(
                 request.getJobPostingId(), request.getCandidateId());
         if (existing.isPresent()) {

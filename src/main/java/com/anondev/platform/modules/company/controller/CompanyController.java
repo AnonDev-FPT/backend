@@ -1,6 +1,7 @@
 package com.anondev.platform.modules.company.controller;
 
 import com.anondev.platform.common.ApiResponse;
+import com.anondev.platform.common.BusinessException;
 import com.anondev.platform.modules.auth.entity.User;
 import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.company.dto.KybVerificationRequest;
@@ -28,20 +29,24 @@ public class CompanyController {
     private final UserRepository userRepository;
 
     @GetMapping("/me")
+    @PreAuthorize("hasRole('EMPLOYER')")
     @Operation(summary = "Get current authenticated employer company profile")
     public ResponseEntity<ApiResponse<Company>> getMyCompany(@AuthenticationPrincipal UserDetails userDetails) {
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new BusinessException("User not found"));
         Company company = companyService.getCompanyByUserId(user.getId());
         return ResponseEntity.ok(ApiResponse.ok(company));
     }
 
     @PutMapping("/me/kyb")
+    @PreAuthorize("hasRole('EMPLOYER')")
     @Operation(summary = "Update Tax ID and business license documentation for KYB verification")
     public ResponseEntity<ApiResponse<Company>> updateKyb(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody KybVerificationRequest request
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new BusinessException("User not found"));
         Company updated = companyService.updateKyb(user.getId(), request);
         return ResponseEntity.ok(ApiResponse.ok("KYB data submitted for verification", updated));
     }

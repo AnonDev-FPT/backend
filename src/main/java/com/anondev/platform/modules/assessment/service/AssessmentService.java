@@ -45,7 +45,14 @@ public class AssessmentService {
     }
 
     @Transactional
-    public TechnicalTest createTest(CreateTestRequest request) {
+    public TechnicalTest createTest(UUID companyId, CreateTestRequest request) {
+        JobPosting job = jobPostingRepository.findById(request.getJobPostingId())
+                .orElseThrow(() -> new BusinessException("Job posting not found."));
+
+        if (companyId != null && !job.getCompanyId().equals(companyId)) {
+            throw new BusinessException("Unauthorized: This job posting does not belong to your company.");
+        }
+
         TechnicalTest test = TechnicalTest.builder()
                 .jobPostingId(request.getJobPostingId())
                 .title(request.getTitle())

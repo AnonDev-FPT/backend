@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -40,12 +41,14 @@ public class BillingController {
     }
 
     @PostMapping("/mock-topup")
+    @PreAuthorize("hasRole('EMPLOYER')")
     @Operation(summary = "Simulated credit wallet top-up")
     public ResponseEntity<ApiResponse<BigDecimal>> mockTopup(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody MockTopupRequest request
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new BusinessException("User not found"));
         Company company = companyRepository.findByOwnerUserId(user.getId())
                 .orElseThrow(() -> new BusinessException("Company profile not found for user"));
         BigDecimal newBalance = billingService.mockTopup(company.getId(), request);
@@ -53,12 +56,14 @@ public class BillingController {
     }
 
     @PostMapping("/subscribe")
+    @PreAuthorize("hasRole('EMPLOYER')")
     @Operation(summary = "Subscribe to Basic, Pro, or Ultra plan")
     public ResponseEntity<ApiResponse<CompanySubscription>> subscribe(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody SubscribeRequest request
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new BusinessException("User not found"));
         Company company = companyRepository.findByOwnerUserId(user.getId())
                 .orElseThrow(() -> new BusinessException("Company profile not found for user"));
         CompanySubscription sub = billingService.subscribe(company.getId(), request);

@@ -1,6 +1,7 @@
 package com.anondev.platform.modules.assessment.controller;
 
 import com.anondev.platform.common.ApiResponse;
+import com.anondev.platform.common.BusinessException;
 import com.anondev.platform.modules.assessment.dto.CreateTestRequest;
 import com.anondev.platform.modules.assessment.dto.SubmitTestRequest;
 import com.anondev.platform.modules.assessment.dto.TestAttemptSummaryDto;
@@ -8,6 +9,8 @@ import com.anondev.platform.modules.assessment.entity.TechnicalTest;
 import com.anondev.platform.modules.assessment.service.AssessmentService;
 import com.anondev.platform.modules.auth.entity.User;
 import com.anondev.platform.modules.auth.repository.UserRepository;
+import com.anondev.platform.modules.company.entity.Company;
+import com.anondev.platform.modules.company.repository.CompanyRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,6 +32,7 @@ public class AssessmentController {
 
     private final AssessmentService assessmentService;
     private final UserRepository userRepository;
+    private final CompanyRepository companyRepository;
 
     @GetMapping("/{jobId}/test")
     @PreAuthorize("hasRole('CANDIDATE')")
@@ -64,8 +68,15 @@ public class AssessmentController {
     @PostMapping("/test")
     @PreAuthorize("hasRole('EMPLOYER')")
     @Operation(summary = "Create technical test linked to a job posting")
-    public ResponseEntity<ApiResponse<TechnicalTest>> createTest(@Valid @RequestBody CreateTestRequest request) {
-        TechnicalTest test = assessmentService.createTest(request);
+    public ResponseEntity<ApiResponse<TechnicalTest>> createTest(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody CreateTestRequest request
+    ) {
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new BusinessException("User not found"));
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+        TechnicalTest test = assessmentService.createTest(company.getId(), request);
         return ResponseEntity.ok(ApiResponse.ok("Technical test created successfully", test));
     }
 }
