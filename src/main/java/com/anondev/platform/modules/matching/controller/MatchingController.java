@@ -32,15 +32,17 @@ public class MatchingController {
     private final CompanyRepository companyRepository;
 
     @GetMapping("/jobs/{jobId}/qualified-candidates")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('EMPLOYER')")
     @Operation(summary = "Get qualified candidates (BlindCandidateCardDto - BR-01)")
     public ResponseEntity<ApiResponse<List<BlindCandidateCardDto>>> getQualifiedCandidates(
             @PathVariable("jobId") UUID jobId,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        Company company = companyRepository.findByOwnerUserId(user.getId()).orElse(null);
-        UUID companyId = company != null ? company.getId() : null;
-        List<BlindCandidateCardDto> candidates = matchingUnlockService.getQualifiedCandidatesForJob(jobId, companyId);
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new BusinessException("User not found"));
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+        List<BlindCandidateCardDto> candidates = matchingUnlockService.getQualifiedCandidatesForJob(jobId, company.getId());
         return ResponseEntity.ok(ApiResponse.ok(candidates));
     }
 

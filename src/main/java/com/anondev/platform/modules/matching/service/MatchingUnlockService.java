@@ -73,6 +73,13 @@ public class MatchingUnlockService {
 
     @Transactional(readOnly = true)
     public List<BlindCandidateCardDto> getQualifiedCandidatesForJob(UUID jobId, UUID companyId) {
+        JobPosting job = jobPostingRepository.findById(jobId)
+                .orElseThrow(() -> new BusinessException("Job posting not found"));
+
+        if (companyId == null || !job.getCompanyId().equals(companyId)) {
+            throw new BusinessException("Unauthorized: This job posting does not belong to your company.");
+        }
+
         List<TestAttempt> passedAttempts = testAttemptRepository.findByJobPostingIdAndIsPassedThreshold(jobId, true);
         if (passedAttempts.isEmpty()) {
             return List.of();
@@ -86,6 +93,7 @@ public class MatchingUnlockService {
             Optional<InterviewInvitation> optInv = invitationRepository.findByJobPostingIdAndCandidateId(jobId, attempt.getCandidateId());
             String invStatus = optInv.map(InterviewInvitation::getInvitationStatus).orElse("NONE");
             boolean isUnlocked = optInv.map(inv -> "ACCEPTED_UNLOCKED".equalsIgnoreCase(inv.getInvitationStatus())).orElse(false);
+            UUID invitationId = optInv.map(InterviewInvitation::getId).orElse(null);
 
             cards.add(BlindCandidateCardDto.builder()
                     .candidateId(attempt.getCandidateId())
@@ -98,6 +106,8 @@ public class MatchingUnlockService {
                     .primaryTechStack(parseJsonList(blind.getPrimaryTechStack()))
                     .testScore(attempt.getTotalScore())
                     .aiCodeFlagged(attempt.getAiCodeFlagged())
+                    .testAttemptId(attempt.getId())
+                    .invitationId(invitationId)
                     .invitationStatus(invStatus)
                     .isUnlocked(isUnlocked)
                     .build());
