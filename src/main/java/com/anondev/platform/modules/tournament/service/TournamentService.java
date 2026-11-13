@@ -91,8 +91,8 @@ public class TournamentService {
 
     @Transactional
     public CodingTournament createTournament(CreateTournamentRequest request) {
-        if (request.getStartTime().isAfter(request.getEndTime())) {
-            throw new BusinessException("Tournament start time must be before end time");
+        if (!request.getStartTime().isBefore(request.getEndTime())) {
+            throw new BusinessException("Tournament start time must be strictly before end time");
         }
 
         Instant now = Instant.now();
@@ -115,6 +115,10 @@ public class TournamentService {
     public TournamentProblem addProblem(UUID tournamentId, AddProblemRequest request) {
         CodingTournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new BusinessException("Tournament not found"));
+
+        if ("FINISHED".equalsIgnoreCase(tournament.getStatus()) || Instant.now().isAfter(tournament.getEndTime())) {
+            throw new BusinessException("Cannot add problem: Tournament has already finished");
+        }
 
         TournamentProblem problem = TournamentProblem.builder()
                 .tournamentId(tournament.getId())
@@ -183,7 +187,7 @@ public class TournamentService {
         CodingTournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new BusinessException("Tournament not found"));
 
-        TournamentParticipant participant = participantRepository.findByTournamentIdAndCandidateId(tournamentId, candidateId)
+        TournamentParticipant participant = participantRepository.findByTournamentIdAndCandidateIdForUpdate(tournamentId, candidateId)
                 .orElseThrow(() -> new BusinessException("You are not registered in this tournament"));
 
         if (Boolean.TRUE.equals(participant.getIsDisqualified())) {
@@ -204,6 +208,11 @@ public class TournamentService {
         if (!problem.getTournamentId().equals(tournamentId)) {
             throw new BusinessException("Problem does not belong to the specified tournament");
         }
+
+        // Check if candidate already has an ACCEPTED submission for this problem BEFORE saving this one
+        boolean alreadySolved = submissionRepository.existsByTournamentIdAndProblemIdAndCandidateIdAndVerdict(
+                tournamentId, problemId, candidateId, "ACCEPTED"
+        );
 
         // Test case evaluation
         int totalTestCases = 10;
@@ -238,17 +247,18 @@ public class TournamentService {
 
         submission = submissionRepository.save(submission);
 
-        // Update participant score and penalty time (standard ICPC logic)
-        Optional<TournamentSubmission> bestPrevious = submissionRepository
-                .findTopByTournamentIdAndProblemIdAndCandidateIdAndVerdictOrderByScoreAwardedDesc(
-                        tournamentId, problemId, candidateId, "ACCEPTED");
-
-        boolean alreadySolved = bestPrevious.isPresent() && !bestPrevious.get().getId().equals(submission.getId());
-
+        // Update participant score and penalty time (Standard ICPC logic: only first ACCEPTED earns score + elapsed time + 20 min per incorrect attempt)
         if ("ACCEPTED".equals(verdict) && !alreadySolved) {
             participant.setTotalScore(participant.getTotalScore() + scoreAwarded);
+
+            // ICPC penalty: elapsed seconds from contest start + 1200 seconds (20 mins) per prior failed attempt
             long secondsElapsed = Math.max(0, Duration.between(tournament.getStartTime(), now).toSeconds());
-            participant.setPenaltySeconds((int) (participant.getPenaltySeconds() + secondsElapsed));
+            long priorFailedAttempts = submissionRepository.countByTournamentIdAndProblemIdAndCandidateIdAndVerdictNot(
+                    tournamentId, problemId, candidateId, "ACCEPTED"
+            );
+            long penaltyAddition = secondsElapsed + (priorFailedAttempts * 1200L);
+
+            participant.setPenaltySeconds((int) (participant.getPenaltySeconds() + penaltyAddition));
             participantRepository.save(participant);
         }
 
@@ -266,8 +276,8 @@ public class TournamentService {
         List<TournamentLeaderboardDto> leaderboard = new ArrayList<>();
         int rank = 1;
         for (TournamentParticipant p : participants) {
-            long solvedCount = submissionRepository.countByTournamentIdAndCandidateIdAndVerdict(
-                    tournamentId, p.getCandidateId(), "ACCEPTED");
+            long solvedCount = submissionRepository.countDistinctSolvedProblems(
+                    tournamentId, p.getCandidateId());
 
             String candidateCode = blindProfileRepository.findById(p.getCandidateId())
                     .map(CandidateBlindProfile::getCandidateCode)

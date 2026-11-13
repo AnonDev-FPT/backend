@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -52,15 +53,27 @@ public class BillingService {
         Company company = companyRepository.findByIdForUpdate(companyId)
                 .orElseThrow(() -> new BusinessException("Company not found"));
 
+        // Check if company already has an active subscription
+        Optional<CompanySubscription> existingSub = subscriptionRepository.findByCompanyIdAndStatus(companyId, "ACTIVE");
+        if (existingSub.isPresent()) {
+            CompanySubscription active = existingSub.get();
+            if (active.getEndDate() == null || active.getEndDate().isAfter(Instant.now())) {
+                throw new BusinessException("Company already has an active subscription until " + active.getEndDate() + ". Please wait until it expires or contact support to upgrade (BR-26).");
+            } else {
+                active.setStatus("EXPIRED");
+                subscriptionRepository.save(active);
+            }
+        }
+
         SubscriptionPlan plan = subscriptionPlanRepository.findByPlanCode(request.getPlanCode())
                 .orElseThrow(() -> new BusinessException("Subscription plan not found: " + request.getPlanCode()));
 
         BigDecimal price = "ANNUAL".equalsIgnoreCase(request.getBillingCycle())
-                ? (plan.getAnnualPrice() != null ? plan.getAnnualPrice() : plan.getMonthlyPrice().multiply(BigDecimal.valueOf(12)))
-                : plan.getMonthlyPrice();
+                ? (plan.getAnnualPrice() != null ? plan.getAnnualPrice() : (plan.getMonthlyPrice() != null ? plan.getMonthlyPrice().multiply(BigDecimal.valueOf(12)) : BigDecimal.ZERO))
+                : (plan.getMonthlyPrice() != null ? plan.getMonthlyPrice() : BigDecimal.ZERO);
 
         // Deduct subscription fee from wallet balance if plan is not free
-        if (price != null && price.compareTo(BigDecimal.ZERO) > 0) {
+        if (price.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal currentCredit = company.getCreditBalance() != null ? company.getCreditBalance() : BigDecimal.ZERO;
             BigDecimal currentHeld = company.getHeldCreditBalance() != null ? company.getHeldCreditBalance() : BigDecimal.ZERO;
             BigDecimal availableCredit = currentCredit.subtract(currentHeld);
@@ -86,11 +99,15 @@ public class BillingService {
                 ? now.plus(365, ChronoUnit.DAYS)
                 : now.plus(30, ChronoUnit.DAYS);
 
+        BigDecimal lockedPrice = "ANNUAL".equalsIgnoreCase(request.getBillingCycle())
+                ? (plan.getAnnualPrice() != null ? plan.getAnnualPrice() : price)
+                : (plan.getMonthlyPrice() != null ? plan.getMonthlyPrice() : price);
+
         CompanySubscription sub = CompanySubscription.builder()
                 .companyId(companyId)
                 .planId(plan.getId())
                 .billingCycle(request.getBillingCycle().toUpperCase())
-                .lockedPrice(plan.getMonthlyPrice())
+                .lockedPrice(lockedPrice)
                 .startDate(now)
                 .endDate(end)
                 .status("ACTIVE")

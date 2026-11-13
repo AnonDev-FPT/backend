@@ -92,7 +92,7 @@ public class DisputeRefundService {
 
     @Transactional
     public void resolveDispute(UUID adminId, UUID disputeId, boolean approve) {
-        RefundDispute dispute = refundDisputeRepository.findById(disputeId)
+        RefundDispute dispute = refundDisputeRepository.findByIdForUpdate(disputeId)
                 .orElseThrow(() -> new BusinessException("Dispute not found."));
 
         if (!"PENDING".equalsIgnoreCase(dispute.getDisputeStatus())) {
@@ -107,6 +107,8 @@ public class DisputeRefundService {
 
         if (approve) {
             dispute.setDisputeStatus("APPROVED_REFUNDED");
+            invitation.setPostUnlockHiringStatus("DISPUTE_REFUNDED");
+            invitationRepository.save(invitation);
 
             if ("MONTHLY_QUOTA".equalsIgnoreCase(invitation.getBillingMethod())) {
                 dispute.setRefundDestination("MONTHLY_QUOTA");

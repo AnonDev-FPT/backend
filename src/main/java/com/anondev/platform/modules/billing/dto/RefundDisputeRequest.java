@@ -3,6 +3,7 @@ package com.anondev.platform.modules.billing.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.util.List;
@@ -22,5 +23,6 @@ public class RefundDisputeRequest {
             message = "Reason must be INVALID_CONTACT_INFO, CANDIDATE_NO_SHOW_5_DAYS, or CONFIRMED_CHEATING")
     private String refundReason;
 
-    private List<String> evidenceUrls;
+    @Size(max = 10, message = "Maximum 10 evidence URLs allowed")
+    private List<@Size(max = 500, message = "Evidence URL cannot exceed 500 characters") String> evidenceUrls;
 }

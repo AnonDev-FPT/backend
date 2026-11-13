@@ -52,6 +52,7 @@ public class TournamentProblem {
     @Builder.Default
     private String starterCodeJson = "{}";
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "test_cases_json", nullable = false, columnDefinition = "JSONB")
     @Builder.Default
