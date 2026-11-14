@@ -1,14 +1,9 @@
 package com.anondev.platform.modules.billing.controller;
 
 import com.anondev.platform.common.ApiResponse;
-import com.anondev.platform.common.BusinessException;
-import com.anondev.platform.modules.auth.entity.User;
-import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.billing.dto.RefundDisputeRequest;
 import com.anondev.platform.modules.billing.entity.RefundDispute;
 import com.anondev.platform.modules.billing.service.DisputeRefundService;
-import com.anondev.platform.modules.company.entity.Company;
-import com.anondev.platform.modules.company.repository.CompanyRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -28,8 +23,6 @@ import java.util.UUID;
 public class AdminDisputeController {
 
     private final DisputeRefundService disputeRefundService;
-    private final UserRepository userRepository;
-    private final CompanyRepository companyRepository;
 
     @PostMapping("/disputes/refund")
     @PreAuthorize("hasRole('EMPLOYER')")
@@ -38,12 +31,7 @@ public class AdminDisputeController {
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody RefundDisputeRequest request
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new BusinessException("User not found"));
-        Company company = companyRepository.findByOwnerUserId(user.getId())
-                .orElseThrow(() -> new BusinessException("Company profile not found for current user"));
-
-        RefundDispute dispute = disputeRefundService.createDispute(company.getId(), request);
+        RefundDispute dispute = disputeRefundService.createDisputeByUserEmail(userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.ok("Dispute submitted successfully", dispute));
     }
 
@@ -55,14 +43,7 @@ public class AdminDisputeController {
             @PathVariable("id") UUID id,
             @RequestParam("approve") boolean approve
     ) {
-        UUID adminId = null;
-        if (userDetails != null && userDetails.getUsername() != null) {
-            adminId = userRepository.findByEmail(userDetails.getUsername())
-                    .map(User::getId)
-                    .orElse(null);
-        }
-
-        disputeRefundService.resolveDispute(adminId, id, approve);
+        disputeRefundService.resolveDisputeByUserEmail(userDetails != null ? userDetails.getUsername() : null, id, approve);
         return ResponseEntity.ok(ApiResponse.ok("Dispute resolution processed: approved=" + approve, null));
     }
 }

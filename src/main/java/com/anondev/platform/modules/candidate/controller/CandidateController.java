@@ -1,9 +1,6 @@
 package com.anondev.platform.modules.candidate.controller;
 
 import com.anondev.platform.common.ApiResponse;
-import com.anondev.platform.common.BusinessException;
-import com.anondev.platform.modules.auth.entity.User;
-import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.candidate.dto.UpdateProfileRequest;
 import com.anondev.platform.modules.candidate.service.CandidateProfileService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,15 +21,12 @@ import java.util.Map;
 public class CandidateController {
 
     private final CandidateProfileService candidateProfileService;
-    private final UserRepository userRepository;
 
     @GetMapping("/me/vault")
     @PreAuthorize("hasRole('CANDIDATE')")
     @Operation(summary = "Get Candidate Vault")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getMyVault(@AuthenticationPrincipal UserDetails userDetails) {
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new BusinessException("User not found"));
-        Map<String, Object> data = candidateProfileService.getCandidateVaultData(user.getId());
+        Map<String, Object> data = candidateProfileService.getCandidateVaultDataByUserEmail(userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.ok(data));
     }
 
@@ -43,9 +37,7 @@ public class CandidateController {
             @AuthenticationPrincipal UserDetails userDetails,
             @jakarta.validation.Valid @RequestBody UpdateProfileRequest request
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new BusinessException("User not found"));
-        candidateProfileService.updateCandidateVault(user.getId(), request);
+        candidateProfileService.updateCandidateVaultByUserEmail(userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.ok("Profile updated and sanitized successfully", null));
     }
 }

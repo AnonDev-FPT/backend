@@ -1,16 +1,11 @@
 package com.anondev.platform.modules.billing.controller;
 
 import com.anondev.platform.common.ApiResponse;
-import com.anondev.platform.common.BusinessException;
-import com.anondev.platform.modules.auth.entity.User;
-import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.billing.dto.MockTopupRequest;
 import com.anondev.platform.modules.billing.dto.SubscribeRequest;
 import com.anondev.platform.modules.billing.entity.CompanySubscription;
 import com.anondev.platform.modules.billing.entity.SubscriptionPlan;
 import com.anondev.platform.modules.billing.service.BillingService;
-import com.anondev.platform.modules.company.entity.Company;
-import com.anondev.platform.modules.company.repository.CompanyRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -31,8 +26,6 @@ import java.util.List;
 public class BillingController {
 
     private final BillingService billingService;
-    private final UserRepository userRepository;
-    private final CompanyRepository companyRepository;
 
     @GetMapping("/plans")
     @Operation(summary = "List Subscription Plans")
@@ -47,11 +40,7 @@ public class BillingController {
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody MockTopupRequest request
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new BusinessException("User not found"));
-        Company company = companyRepository.findByOwnerUserId(user.getId())
-                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
-        BigDecimal newBalance = billingService.mockTopup(company.getId(), request);
+        BigDecimal newBalance = billingService.mockTopupByUserEmail(userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.ok("Top-up successful", newBalance));
     }
 
@@ -62,11 +51,7 @@ public class BillingController {
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody SubscribeRequest request
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new BusinessException("User not found"));
-        Company company = companyRepository.findByOwnerUserId(user.getId())
-                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
-        CompanySubscription sub = billingService.subscribe(company.getId(), request);
-        return ResponseEntity.ok(ApiResponse.ok("Subscription activated successfully", sub));
+        CompanySubscription subscription = billingService.subscribeByUserEmail(userDetails.getUsername(), request);
+        return ResponseEntity.ok(ApiResponse.ok("Subscription updated successfully", subscription));
     }
 }

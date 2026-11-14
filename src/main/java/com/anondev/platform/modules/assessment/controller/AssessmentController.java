@@ -1,16 +1,11 @@
 package com.anondev.platform.modules.assessment.controller;
 
 import com.anondev.platform.common.ApiResponse;
-import com.anondev.platform.common.BusinessException;
 import com.anondev.platform.modules.assessment.dto.CreateTestRequest;
 import com.anondev.platform.modules.assessment.dto.SubmitTestRequest;
 import com.anondev.platform.modules.assessment.dto.TestAttemptSummaryDto;
 import com.anondev.platform.modules.assessment.entity.TechnicalTest;
 import com.anondev.platform.modules.assessment.service.AssessmentService;
-import com.anondev.platform.modules.auth.entity.User;
-import com.anondev.platform.modules.auth.repository.UserRepository;
-import com.anondev.platform.modules.company.entity.Company;
-import com.anondev.platform.modules.company.repository.CompanyRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -31,8 +26,6 @@ import java.util.UUID;
 public class AssessmentController {
 
     private final AssessmentService assessmentService;
-    private final UserRepository userRepository;
-    private final CompanyRepository companyRepository;
 
     @GetMapping("/{jobId}/test")
     @PreAuthorize("hasRole('CANDIDATE')")
@@ -44,8 +37,7 @@ public class AssessmentController {
         if (userDetails == null) {
             throw new AccessDeniedException("Authentication required to take technical test");
         }
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        TechnicalTest test = assessmentService.getJobTest(jobId, user.getId());
+        TechnicalTest test = assessmentService.getJobTestByUserEmail(jobId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.ok(test));
     }
 
@@ -60,8 +52,7 @@ public class AssessmentController {
         if (userDetails == null) {
             throw new AccessDeniedException("Authentication required to submit technical test");
         }
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        TestAttemptSummaryDto summary = assessmentService.submitTest(jobId, user.getId(), request);
+        TestAttemptSummaryDto summary = assessmentService.submitTestByUserEmail(jobId, userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.ok("Test attempt evaluated successfully", summary));
     }
 
@@ -72,11 +63,7 @@ public class AssessmentController {
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody CreateTestRequest request
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new BusinessException("User not found"));
-        Company company = companyRepository.findByOwnerUserId(user.getId())
-                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
-        TechnicalTest test = assessmentService.createTest(company.getId(), request);
+        TechnicalTest test = assessmentService.createTestByUserEmail(userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.ok("Technical test created successfully", test));
     }
 }
