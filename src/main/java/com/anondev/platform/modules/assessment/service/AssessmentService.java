@@ -11,6 +11,10 @@ import com.anondev.platform.modules.assessment.entity.TestAttempt;
 import com.anondev.platform.modules.assessment.repository.ProctoringLogRepository;
 import com.anondev.platform.modules.assessment.repository.TechnicalTestRepository;
 import com.anondev.platform.modules.assessment.repository.TestAttemptRepository;
+import com.anondev.platform.modules.auth.entity.User;
+import com.anondev.platform.modules.auth.repository.UserRepository;
+import com.anondev.platform.modules.company.entity.Company;
+import com.anondev.platform.modules.company.repository.CompanyRepository;
 import com.anondev.platform.modules.job.entity.JobPosting;
 import com.anondev.platform.modules.job.repository.JobPostingRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +36,31 @@ public class AssessmentService {
     private final ProctoringLogRepository proctoringLogRepository;
     private final JobPostingRepository jobPostingRepository;
     private final AiSanitizerService aiSanitizerService;
+    private final UserRepository userRepository;
+    private final CompanyRepository companyRepository;
+
+    @Transactional(readOnly = true)
+    public TechnicalTest getJobTestByUserEmail(UUID jobId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        return getJobTest(jobId, user.getId());
+    }
+
+    @Transactional
+    public TestAttemptSummaryDto submitTestByUserEmail(UUID jobId, String userEmail, SubmitTestRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        return submitTest(jobId, user.getId(), request);
+    }
+
+    @Transactional
+    public TechnicalTest createTestByUserEmail(String userEmail, CreateTestRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+        return createTest(company.getId(), request);
+    }
 
     @Transactional(readOnly = true)
     public TechnicalTest getJobTest(UUID jobId, UUID candidateId) {

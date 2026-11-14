@@ -4,6 +4,8 @@ import com.anondev.platform.common.BusinessException;
 import com.anondev.platform.integration.ai.AiSanitizerService;
 import com.anondev.platform.modules.assessment.entity.TechnicalTest;
 import com.anondev.platform.modules.assessment.repository.TechnicalTestRepository;
+import com.anondev.platform.modules.auth.entity.User;
+import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.billing.entity.CompanySubscription;
 import com.anondev.platform.modules.billing.entity.SubscriptionPlan;
 import com.anondev.platform.modules.billing.entity.WalletTransaction;
@@ -13,6 +15,7 @@ import com.anondev.platform.modules.billing.repository.WalletTransactionReposito
 import com.anondev.platform.modules.company.entity.Company;
 import com.anondev.platform.modules.company.repository.CompanyRepository;
 import com.anondev.platform.modules.job.dto.CreateJobRequest;
+import com.anondev.platform.modules.job.dto.JobPostingResponse;
 import com.anondev.platform.modules.job.entity.JobPosting;
 import com.anondev.platform.modules.job.repository.JobPostingRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,9 +38,17 @@ public class JobService {
     private final CompanySubscriptionRepository subscriptionRepository;
     private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final UserRepository userRepository;
 
     @Transactional
-    public JobPosting createJob(UUID userId, CreateJobRequest request) {
+    public JobPostingResponse createJob(String userEmail, CreateJobRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        return createJob(user.getId(), request);
+    }
+
+    @Transactional
+    public JobPostingResponse createJob(UUID userId, CreateJobRequest request) {
         // Validate salary range consistency
         if (request.getSalaryMin() != null && request.getSalaryMax() != null
                 && request.getSalaryMin().compareTo(request.getSalaryMax()) > 0) {
@@ -135,24 +146,38 @@ public class JobService {
                 .build();
         technicalTestRepository.save(test);
 
-        return job;
+        return JobPostingResponse.fromEntity(job);
     }
 
     @Transactional(readOnly = true)
-    public List<JobPosting> getJobsByCompany(UUID userId) {
+    public List<JobPostingResponse> getJobsByCompany(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        return getJobsByCompany(user.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<JobPostingResponse> getJobsByCompany(UUID userId) {
         Company company = companyRepository.findByOwnerUserId(userId)
                 .orElseThrow(() -> new BusinessException("Company profile not found for user"));
-        return jobPostingRepository.findByCompanyId(company.getId());
+        return jobPostingRepository.findByCompanyId(company.getId())
+                .stream()
+                .map(JobPostingResponse::fromEntity)
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<JobPosting> getActiveJobs() {
-        return jobPostingRepository.findByStatus("ACTIVE");
+    public List<JobPostingResponse> getActiveJobs() {
+        return jobPostingRepository.findByStatus("ACTIVE")
+                .stream()
+                .map(JobPostingResponse::fromEntity)
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public JobPosting getJobById(UUID jobId) {
-        return jobPostingRepository.findById(jobId)
+    public JobPostingResponse getJobById(UUID jobId) {
+        JobPosting job = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new BusinessException("Job posting not found"));
+        return JobPostingResponse.fromEntity(job);
     }
 }

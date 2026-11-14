@@ -1,6 +1,8 @@
 package com.anondev.platform.modules.billing.service;
 
 import com.anondev.platform.common.BusinessException;
+import com.anondev.platform.modules.auth.entity.User;
+import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.billing.dto.*;
 import com.anondev.platform.modules.billing.entity.*;
 import com.anondev.platform.modules.billing.repository.*;
@@ -26,6 +28,25 @@ public class BillingService {
     private final CompanySubscriptionRepository subscriptionRepository;
     private final MonthlyQuotaLedgerRepository quotaLedgerRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final UserRepository userRepository;
+
+    @Transactional
+    public BigDecimal mockTopupByUserEmail(String userEmail, MockTopupRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+        return mockTopup(company.getId(), request);
+    }
+
+    @Transactional
+    public CompanySubscription subscribeByUserEmail(String userEmail, SubscribeRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+        return subscribe(company.getId(), request);
+    }
 
     @Transactional
     public BigDecimal mockTopup(UUID companyId, MockTopupRequest request) {

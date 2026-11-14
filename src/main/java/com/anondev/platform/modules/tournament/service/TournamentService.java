@@ -1,6 +1,8 @@
 package com.anondev.platform.modules.tournament.service;
 
 import com.anondev.platform.common.BusinessException;
+import com.anondev.platform.modules.auth.entity.User;
+import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.candidate.entity.CandidateBlindProfile;
 import com.anondev.platform.modules.candidate.repository.BlindProfileRepository;
 import com.anondev.platform.modules.tournament.dto.*;
@@ -34,7 +36,43 @@ public class TournamentService {
     private final TournamentParticipantRepository participantRepository;
     private final TournamentSubmissionRepository submissionRepository;
     private final BlindProfileRepository blindProfileRepository;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private UUID resolveCandidateId(String userEmail) {
+        if (userEmail == null) return null;
+        return userRepository.findByEmail(userEmail).map(User::getId).orElse(null);
+    }
+
+    private User resolveUser(String userEmail) {
+        return userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TournamentSummaryDto> getAllTournamentsByUserEmail(String userEmail) {
+        return getAllTournaments(resolveCandidateId(userEmail));
+    }
+
+    @Transactional(readOnly = true)
+    public TournamentSummaryDto getTournamentDetailsByUserEmail(UUID id, String userEmail) {
+        return getTournamentDetails(id, resolveCandidateId(userEmail));
+    }
+
+    @Transactional
+    public TournamentParticipant joinTournamentByUserEmail(UUID id, String userEmail) {
+        return joinTournament(id, resolveUser(userEmail).getId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TournamentProblem> getProblemsByUserEmail(UUID id, String userEmail) {
+        return getProblems(id, resolveUser(userEmail).getId());
+    }
+
+    @Transactional
+    public TournamentSubmission submitSolutionByUserEmail(UUID id, UUID problemId, String userEmail, SubmitTournamentSolutionRequest request) {
+        return submitSolution(id, problemId, resolveUser(userEmail).getId(), request);
+    }
 
     @Transactional(readOnly = true)
     public List<TournamentSummaryDto> getAllTournaments(UUID candidateId) {

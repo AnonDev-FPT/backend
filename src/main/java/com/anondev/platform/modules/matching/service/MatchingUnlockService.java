@@ -4,6 +4,8 @@ import com.anondev.platform.common.BusinessException;
 import com.anondev.platform.integration.ai.AiSanitizerService;
 import com.anondev.platform.modules.assessment.entity.TestAttempt;
 import com.anondev.platform.modules.assessment.repository.TestAttemptRepository;
+import com.anondev.platform.modules.auth.entity.User;
+import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.billing.entity.MonthlyQuotaLedger;
 import com.anondev.platform.modules.billing.entity.WalletTransaction;
 import com.anondev.platform.modules.billing.repository.MonthlyQuotaLedgerRepository;
@@ -51,7 +53,57 @@ public class MatchingUnlockService {
     private final MonthlyQuotaLedgerRepository quotaLedgerRepository;
     private final WalletTransactionRepository walletTransactionRepository;
     private final AiSanitizerService aiSanitizerService;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private User resolveUser(String userEmail) {
+        return userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+    }
+
+    private Company resolveEmployerCompany(String userEmail) {
+        User user = resolveUser(userEmail);
+        return companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for user"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<BlindCandidateCardDto> getQualifiedCandidatesForJob(String userEmail, UUID jobId) {
+        Company company = resolveEmployerCompany(userEmail);
+        return getQualifiedCandidatesForJob(jobId, company.getId());
+    }
+
+    @Transactional
+    public InterviewInvitationResponse sendInvitationByUserEmail(String userEmail, SendInvitationRequest request) {
+        Company company = resolveEmployerCompany(userEmail);
+        InterviewInvitation invitation = sendInvitation(company.getId(), request);
+        return InterviewInvitationResponse.fromEntity(invitation);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CandidateInvitationItemDto> getCandidateInvitationsByUserEmail(String userEmail) {
+        User user = resolveUser(userEmail);
+        return getCandidateInvitations(user.getId());
+    }
+
+    @Transactional
+    public InterviewInvitationResponse respondInvitationByUserEmail(String userEmail, UUID invitationId, RespondInvitationRequest request) {
+        User user = resolveUser(userEmail);
+        InterviewInvitation invitation = respondInvitation(user.getId(), invitationId, request);
+        return InterviewInvitationResponse.fromEntity(invitation);
+    }
+
+    @Transactional(readOnly = true)
+    public UnlockedCandidateFullDto getUnlockedProfileByUserEmail(String userEmail, UUID invitationId) {
+        Company company = resolveEmployerCompany(userEmail);
+        return getUnlockedProfile(company.getId(), invitationId);
+    }
+
+    @Transactional
+    public void updateHiringStatusByUserEmail(String userEmail, UUID invitationId, String status) {
+        Company company = resolveEmployerCompany(userEmail);
+        updateHiringStatus(company.getId(), invitationId, status);
+    }
 
     private List<String> parseJsonList(String json) {
         if (json == null || json.isBlank() || "[]".equals(json.trim())) return List.of();

@@ -2,6 +2,8 @@ package com.anondev.platform.modules.candidate.service;
 
 import com.anondev.platform.common.BusinessException;
 import com.anondev.platform.integration.ai.AiSanitizerService;
+import com.anondev.platform.modules.auth.entity.User;
+import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.candidate.dto.BlindProfileResponseDto;
 import com.anondev.platform.modules.candidate.dto.IdentityVaultDto;
 import com.anondev.platform.modules.candidate.dto.UpdateProfileRequest;
@@ -26,7 +28,22 @@ public class CandidateProfileService {
     private final BlindProfileRepository blindProfileRepository;
     private final IdentityVaultRepository identityVaultRepository;
     private final AiSanitizerService aiSanitizerService;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getCandidateVaultDataByUserEmail(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        return getCandidateVaultData(user.getId());
+    }
+
+    @Transactional
+    public void updateCandidateVaultByUserEmail(String userEmail, UpdateProfileRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        updateCandidateVault(user.getId(), request);
+    }
 
     private List<String> parseJsonList(String json) {
         if (json == null || json.isBlank() || "[]".equals(json.trim())) return List.of();

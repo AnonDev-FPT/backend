@@ -1,6 +1,9 @@
 package com.anondev.platform.modules.company.service;
 
 import com.anondev.platform.common.BusinessException;
+import com.anondev.platform.modules.auth.entity.User;
+import com.anondev.platform.modules.auth.repository.UserRepository;
+import com.anondev.platform.modules.company.dto.CompanyProfileResponse;
 import com.anondev.platform.modules.company.dto.KybVerificationRequest;
 import com.anondev.platform.modules.company.entity.Company;
 import com.anondev.platform.modules.company.repository.CompanyRepository;
@@ -15,11 +18,19 @@ import java.util.UUID;
 public class CompanyService {
 
     private final CompanyRepository companyRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public Company getCompanyByUserId(UUID userId) {
         return companyRepository.findByOwnerUserId(userId)
                 .orElseThrow(() -> new BusinessException("Company profile not found for current user."));
+    }
+
+    @Transactional(readOnly = true)
+    public CompanyProfileResponse getCompanyProfileByUserEmail(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        return CompanyProfileResponse.fromEntity(getCompanyByUserId(user.getId()));
     }
 
     @Transactional
@@ -42,10 +53,17 @@ public class CompanyService {
     }
 
     @Transactional
-    public Company verifyCompanyTaxId(UUID companyId, boolean isVerified) {
+    public CompanyProfileResponse updateKybByUserEmail(String userEmail, KybVerificationRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        return CompanyProfileResponse.fromEntity(updateKyb(user.getId(), request));
+    }
+
+    @Transactional
+    public CompanyProfileResponse verifyCompanyTaxId(UUID companyId, boolean isVerified) {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new BusinessException("Company not found."));
         company.setIsTaxVerified(isVerified);
-        return companyRepository.save(company);
+        return CompanyProfileResponse.fromEntity(companyRepository.save(company));
     }
 }

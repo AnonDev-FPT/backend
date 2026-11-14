@@ -1,8 +1,6 @@
 package com.anondev.platform.modules.tournament.controller;
 
 import com.anondev.platform.common.ApiResponse;
-import com.anondev.platform.modules.auth.entity.User;
-import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.tournament.dto.SubmitTournamentSolutionRequest;
 import com.anondev.platform.modules.tournament.dto.TournamentLeaderboardDto;
 import com.anondev.platform.modules.tournament.dto.TournamentSummaryDto;
@@ -30,15 +28,14 @@ import java.util.UUID;
 public class TournamentController {
 
     private final TournamentService tournamentService;
-    private final UserRepository userRepository;
 
     @GetMapping
     @Operation(summary = "List all coding tournaments (UPCOMING, ONGOING, FINISHED)")
     public ResponseEntity<ApiResponse<List<TournamentSummaryDto>>> getTournaments(
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        UUID candidateId = getCandidateId(userDetails);
-        List<TournamentSummaryDto> list = tournamentService.getAllTournaments(candidateId);
+        String email = userDetails != null ? userDetails.getUsername() : null;
+        List<TournamentSummaryDto> list = tournamentService.getAllTournamentsByUserEmail(email);
         return ResponseEntity.ok(ApiResponse.ok(list));
     }
 
@@ -48,8 +45,8 @@ public class TournamentController {
             @PathVariable("id") UUID id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        UUID candidateId = getCandidateId(userDetails);
-        TournamentSummaryDto dto = tournamentService.getTournamentDetails(id, candidateId);
+        String email = userDetails != null ? userDetails.getUsername() : null;
+        TournamentSummaryDto dto = tournamentService.getTournamentDetailsByUserEmail(id, email);
         return ResponseEntity.ok(ApiResponse.ok(dto));
     }
 
@@ -60,8 +57,7 @@ public class TournamentController {
             @PathVariable("id") UUID id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        TournamentParticipant participant = tournamentService.joinTournament(id, user.getId());
+        TournamentParticipant participant = tournamentService.joinTournamentByUserEmail(id, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.ok("Successfully registered for tournament", participant));
     }
 
@@ -72,8 +68,7 @@ public class TournamentController {
             @PathVariable("id") UUID id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        List<TournamentProblem> problems = tournamentService.getProblems(id, user.getId());
+        List<TournamentProblem> problems = tournamentService.getProblemsByUserEmail(id, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.ok(problems));
     }
 
@@ -86,8 +81,7 @@ public class TournamentController {
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody SubmitTournamentSolutionRequest request
     ) {
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        TournamentSubmission submission = tournamentService.submitSolution(id, problemId, user.getId(), request);
+        TournamentSubmission submission = tournamentService.submitSolutionByUserEmail(id, problemId, userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.ok("Solution evaluated: " + submission.getVerdict(), submission));
     }
 
@@ -99,12 +93,4 @@ public class TournamentController {
         List<TournamentLeaderboardDto> leaderboard = tournamentService.getLeaderboard(id);
         return ResponseEntity.ok(ApiResponse.ok(leaderboard));
     }
-
-    private UUID getCandidateId(UserDetails userDetails) {
-        if (userDetails == null || userDetails.getUsername() == null) return null;
-        return userRepository.findByEmail(userDetails.getUsername())
-                .map(User::getId)
-                .orElse(null);
-    }
 }
-

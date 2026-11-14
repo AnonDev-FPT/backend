@@ -1,6 +1,8 @@
 package com.anondev.platform.modules.billing.service;
 
 import com.anondev.platform.common.BusinessException;
+import com.anondev.platform.modules.auth.entity.User;
+import com.anondev.platform.modules.auth.repository.UserRepository;
 import com.anondev.platform.modules.billing.dto.RefundDisputeRequest;
 import com.anondev.platform.modules.billing.entity.MonthlyQuotaLedger;
 import com.anondev.platform.modules.billing.entity.RefundDispute;
@@ -35,7 +37,28 @@ public class DisputeRefundService {
     private final CompanyRepository companyRepository;
     private final MonthlyQuotaLedgerRepository quotaLedgerRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Transactional
+    public RefundDispute createDisputeByUserEmail(String userEmail, RefundDisputeRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new BusinessException("User not found"));
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .orElseThrow(() -> new BusinessException("Company profile not found for current user"));
+        return createDispute(company.getId(), request);
+    }
+
+    @Transactional
+    public void resolveDisputeByUserEmail(String adminEmail, UUID disputeId, boolean approve) {
+        UUID adminId = null;
+        if (adminEmail != null) {
+            adminId = userRepository.findByEmail(adminEmail)
+                    .map(User::getId)
+                    .orElse(null);
+        }
+        resolveDispute(adminId, disputeId, approve);
+    }
 
     private static final List<String> VALID_REASONS = List.of(
             "INVALID_CONTACT_INFO", "CANDIDATE_NO_SHOW_5_DAYS", "CONFIRMED_CHEATING"
